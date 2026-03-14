@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d0d0d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>AutoLog</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d0d;--s1:#141414;--s2:#1c1c1c;--s3:#242424;
+  --border:#2e2e2e;--a:#c8f060;--a2:#ff5c3a;--a3:#3af0c8;
+  --text:#f2f2f2;--sub:#888;--danger:#ff3b5c;--ok:#3af0c8;
+  --r:12px;--font:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--font);display:flex;flex-direction:column}
+
+/* ── HEADER ── */
+.hdr{
+  background:var(--s1);border-bottom:1px solid var(--border);
+  padding:12px 18px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:4px;color:var(--a)}
+.logo em{color:var(--text);font-style:normal}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.save-dot{width:7px;height:7px;border-radius:50%;background:var(--sub);transition:background .3s}
+.save-dot.saved{background:var(--ok)}
+.btn-backup{
+  background:none;border:1px solid var(--border);color:var(--sub);
+  font-family:var(--font);font-size:11px;font-weight:600;letter-spacing:.5px;
+  padding:5px 10px;border-radius:6px;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;gap:5px;
+}
+.btn-backup:active{border-color:var(--a);color:var(--a)}
+
+/* ── NAV ── */
+.nav{
+  background:var(--s1);border-bottom:1px solid var(--border);
+  display:flex;flex-shrink:0;
+}
+.nb{
+  flex:1;background:none;border:none;color:var(--sub);
+  font-family:var(--font);font-size:12px;font-weight:600;
+  padding:10px 6px;cursor:pointer;letter-spacing:.3px;
+  border-bottom:2px solid transparent;transition:all .2s;
+}
+.nb.on{color:var(--a);border-bottom-color:var(--a)}
+
+/* ── PAGES ── */
+.pages{flex:1;overflow:hidden;position:relative}
+.page{
+  position:absolute;inset:0;overflow-y:auto;padding:16px;
+  display:none;-webkit-overflow-scrolling:touch;
+}
+.page.on{display:block}
+.page-inner{max-width:560px;margin:0 auto;padding-bottom:80px}
+
+/* ── SECTION HEAD ── */
+.sh{
+  font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;
+  color:var(--sub);margin-bottom:12px;margin-top:20px;
+  display:flex;align-items:center;gap:10px;
+}
+.sh:first-child{margin-top:4px}
+.sh::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── CARDS ── */
+.card{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);padding:15px;margin-bottom:10px;
+  transition:border-color .2s;position:relative;
+}
+.car-card{
+  cursor:pointer;border-left:3px solid var(--a);padding-left:14px;
+}
+.car-card:active{border-color:var(--a)}
+.plate{
+  font-family:'Bebas Neue',sans-serif;font-size:22px;
+  letter-spacing:4px;color:var(--a);line-height:1;
+}
+.model{font-size:15px;font-weight:600;margin:3px 0 1px}
+.year-color{font-size:12px;color:var(--sub)}
+.car-stats{display:flex;gap:0;margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+.cstat{flex:1;text-align:center;border-right:1px solid var(--border)}
+.cstat:last-child{border-right:none}
+.cstat-val{font-size:14px;font-weight:700;color:var(--text);display:block}
+.cstat-lbl{font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px}
+
+/* ── RECORDS ── */
+.rec{
+  display:flex;gap:12px;align-items:flex-start;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);padding:13px;margin-bottom:8px;
+  position:relative;
+}
+.rec-ico{
+  width:36px;height:36px;border-radius:9px;background:var(--s3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.rec-body{flex:1;min-width:0}
+.rec-type{font-size:14px;font-weight:600}
+.rec-meta{font-size:11px;color:var(--sub);margin-top:2px}
+.rec-note{font-size:11px;color:var(--sub);margin-top:4px;font-style:italic;opacity:.8}
+.rec-right{text-align:right;flex-shrink:0}
+.rec-cost{font-size:15px;font-weight:700;color:var(--a)}
+.rec-km{font-size:11px;color:var(--sub);margin-top:2px}
+
+/* ── BUTTONS ── */
+.btn{
+  border:none;border-radius:9px;font-family:var(--font);
+  font-weight:600;font-size:14px;padding:10px 18px;
+  cursor:pointer;transition:transform .1s;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn:active{transform:scale(.95)}
+.btn-p{background:var(--a);color:#0d0d0d}
+.btn-g{background:var(--s3);color:var(--text)}
+.btn-d{background:none;border:1px solid var(--danger);color:var(--danger)}
+.btn-full{width:100%;justify-content:center;padding:14px;border-radius:var(--r);font-size:15px}
+.xbtn{
+  position:absolute;top:8px;right:8px;background:none;border:none;
+  color:var(--sub);font-size:14px;cursor:pointer;padding:4px 6px;
+  border-radius:5px;transition:all .15s;line-height:1;
+}
+.xbtn:active{color:var(--danger);background:rgba(255,59,92,.1)}
+
+/* ── MODAL ── */
+.ov{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
+  z-index:200;align-items:flex-end;backdrop-filter:blur(6px);
+}
+.ov.on{display:flex}
+.modal{
+  background:var(--s2);border:1px solid var(--border);
+  border-top:1px solid var(--s3);
+  border-radius:18px 18px 0 0;padding:20px 18px 36px;
+  width:100%;max-width:560px;margin:0 auto;
+  max-height:88vh;overflow-y:auto;
+  animation:up .22s cubic-bezier(.22,1,.36,1);
+}
+@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mhandle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 18px}
+.mtitle{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:var(--a);margin-bottom:16px}
+
+/* ── FORM ── */
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--sub);margin-bottom:5px}
+.fi,.fs,.fta{
+  width:100%;background:var(--s1);border:1px solid var(--border);
+  border-radius:9px;color:var(--text);font-family:var(--font);
+  font-size:15px;padding:11px 13px;outline:none;
+  transition:border-color .2s;-webkit-appearance:none;appearance:none;
+}
+.fi:focus,.fs:focus,.fta:focus{border-color:var(--a)}
+.fs option{background:var(--s1)}
+.fta{resize:vertical;min-height:65px}
+.row{display:flex;gap:10px}.row .fg{flex:1}
+.fbtn-row{display:flex;gap:8px;margin-top:6px}
+.fbtn-row .btn{flex:1;justify-content:center}
+
+/* ── CHIPS ── */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  padding:6px 12px;border-radius:20px;border:1px solid var(--border);
+  background:var(--s1);color:var(--sub);font-family:var(--font);
+  font-size:12px;cursor:pointer;transition:all .15s;
+}
+.chip.on{background:rgba(200,240,96,.1);border-color:var(--a);color:var(--a);font-weight:700}
+
+/* ── FILTER BAR ── */
+.fbar{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.fbar::-webkit-scrollbar{display:none}
+
+/* ── SUMMARY ── */
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.scard{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.slbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--sub);margin-bottom:5px}
+.sval{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--a);line-height:1}
+.ssub{font-size:11px;color:var(--sub);margin-top:3px}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;padding:3px 8px;border-radius:20px;margin:2px;background:rgba(200,240,96,.08);color:var(--a);border:1px solid rgba(200,240,96,.2)}
+
+/* ── BACKUP PANEL ── */
+.backup-panel{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;margin-bottom:14px;
+}
+.backup-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.backup-row .btn{flex:1;min-width:100px;justify-content:center;font-size:13px;padding:10px 12px}
+.backup-info{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:40px 16px;color:var(--sub)}
+.empty-ico{font-size:40px;margin-bottom:10px}
+.empty-t{font-size:16px;font-weight:600;color:var(--text);margin-bottom:5px}
+
+/* ── FAB ── */
+.fab{
+  position:fixed;bottom:20px;right:18px;width:52px;height:52px;
+  border-radius:50%;background:var(--a);color:#0d0d0d;font-size:24px;
+  border:none;cursor:pointer;box-shadow:0 4px 20px rgba(200,240,96,.35);
+  display:flex;align-items:center;justify-content:center;z-index:99;
+  transition:transform .15s;
+}
+.fab:active{transform:scale(.9)}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(10px);
+  background:var(--s3);color:var(--text);font-size:13px;font-weight:600;
+  padding:9px 18px;border-radius:20px;z-index:999;
+  opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;
+  border:1px solid var(--border);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{background:rgba(58,240,200,.15);color:var(--ok);border-color:rgba(58,240,200,.3)}
+.toast.err{background:rgba(255,59,92,.15);color:var(--danger);border-color:rgba(255,59,92,.3)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo">Auto<em>Log</em></div>
+  <div class="hdr-right">
+    <div class="save-dot" id="saveDot"></div>
+    <button class="btn-backup" onclick="showPage('backup',this)">💾 Backup</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="nb on" onclick="showPage('carros',this)">🚗 Carros</button>
+  <button class="nb" onclick="showPage('registos',this)">🔧 Registos</button>
+  <button class="nb" onclick="showPage('resumo',this)">📊 Resumo</button>
+</div>
+
+<div class="pages">
+
+  <!-- CARROS -->
+  <div class="page on" id="page-carros">
+    <div class="page-inner">
+      <div class="sh">Os Meus Carros</div>
+      <div id="car-list"></div>
+      <button class="btn btn-p btn-full" onclick="openM('m-car')">+ Adicionar Carro</button>
+    </div>
+  </div>
+
+  <!-- REGISTOS -->
+  <div class="page" id="page-registos">
+    <div class="page-inner">
+      <div class="sh">Registos</div>
+      <div class="fbar" id="fbar"></div>
+      <div id="rec-list"></div>
+    </div>
+    <button class="fab" onclick="openM('m-rec')">+</button>
+  </div>
+
+  <!-- RESUMO -->
+  <div class="page" id="page-resumo">
+    <div class="page-inner">
+      <div class="sh">Resumo Geral</div>
+      <div class="sgrid" id="sgrid"></div>
+      <div class="sh">Por Carro</div>
+      <div id="car-sum"></div>
+    </div>
+  </div>
+
+  <!-- BACKUP -->
+  <div class="page" id="page-backup">
+    <div class="page-inner">
+      <div class="sh">Guardar &amp; Restaurar</div>
+
+      <div class="backup-panel">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">💾 Exportar dados</div>
+        <div class="backup-info">Descarrega um ficheiro <strong>autolog.json</strong> com todos os teus dados. Guarda-o na pasta que quiseres no telemóvel.</div>
+        <div class="backup-row">
+          <button class="btn btn-p" onclick="exportJSON()">⬇ Exportar JSON</button>
+        </div>
+      </div>
+
+      <div class="backup-panel">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">📂 Importar dados</div>
+        <div class="backup-info">Carrega um ficheiro <strong>autolog.json</strong> previamente exportado. Os dados actuais serão substituídos.</div>
+        <div class="backup-row">
+          <button class="btn btn-g" onclick="importJSON()">⬆ Importar JSON</button>
+        </div>
+      </div>
+
+      <div class="backup-panel">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">🌐 Instalar como App</div>
+        <div class="backup-info">
+          No Chrome Android: toca nos <strong>⋮ três pontos</strong> → <strong>"Adicionar ao ecrã inicial"</strong>.<br>
+          A app fica instalada como ícone. Os dados ficam guardados automaticamente neste browser.
+        </div>
+      </div>
+
+      <div class="backup-panel" style="border-color:rgba(255,59,92,.25)">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--danger)">🗑 Apagar tudo</div>
+        <div class="backup-info">Remove todos os carros e registos permanentemente.</div>
+        <div class="backup-row">
+          <button class="btn btn-d" onclick="clearAll()">Apagar todos os dados</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /pages -->
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL CARRO -->
+<div class="ov" id="m-car">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mtitle">Novo Carro</div>
+    <div class="fg"><label class="fl">Matrícula</label><input class="fi" id="c-plate" placeholder="46-NP-09" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9\-]/g,'')"></div>
+    <div class="fg"><label class="fl">Marca e Modelo</label><input class="fi" id="c-model" placeholder="Seat Ibiza"></div>
+    <div class="row">
+      <div class="fg"><label class="fl">Ano</label><input class="fi" id="c-year" type="number" placeholder="2018" min="1900" max="2099"></div>
+      <div class="fg"><label class="fl">Cor</label><input class="fi" id="c-color" placeholder="Branco"></div>
+    </div>
+    <div class="fbtn-row">
+      <button class="btn btn-g" onclick="closeM('m-car')">Cancelar</button>
+      <button class="btn btn-p" style="flex:2" onclick="addCar()">Guardar Carro</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REGISTO -->
+<div class="ov" id="m-rec">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mtitle">Novo Registo</div>
+    <div class="fg"><label class="fl">Carro</label><select class="fs" id="r-car"></select></div>
+    <div class="row">
+      <div class="fg"><label class="fl">Data</label><input class="fi" id="r-date" type="date"></div>
+      <div class="fg"><label class="fl">Quilómetros</label><input class="fi" id="r-km" type="number" placeholder="253000"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Tipo de Intervenção</label>
+      <div class="chips" id="tchips"></div>
+    </div>
+    <div class="fg" id="cfg" style="display:none">
+      <label class="fl">Descrição</label>
+      <input class="fi" id="r-custom" placeholder="Ex: Troca de embraiagem">
+    </div>
+    <div class="fg"><label class="fl">Custo (€)</label><input class="fi" id="r-cost" type="number" step="0.01" min="0" placeholder="0.00"></div>
+    <div class="fg"><label class="fl">Notas (opcional)</label><textarea class="fta" id="r-notes" placeholder="Observações..."></textarea></div>
+    <div class="fbtn-row">
+      <button class="btn btn-g" onclick="closeM('m-rec')">Cancelar</button>
+      <button class="btn btn-p" style="flex:2" onclick="addRec()">Guardar Registo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE CARRO -->
+<div class="ov" id="m-det">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div id="det-hdr"></div>
+    <div id="det-recs"></div>
+    <div class="fbtn-row" style="margin-top:14px">
+      <button class="btn btn-g" onclick="closeM('m-det')">Fechar</button>
+      <button class="btn btn-p" style="flex:2" id="det-add-btn">+ Registo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// TIPOS DE INTERVENÇÃO
+// ══════════════════════════════════════
+const TIPOS=[
+  {id:'inspecao',l:'Inspeção',i:'🔍'},{id:'oleo',l:'Óleo',i:'🛢️'},
+  {id:'pneus',l:'Pneus',i:'⚫'},{id:'travoes',l:'Travões',i:'🔴'},
+  {id:'filtros',l:'Filtros',i:'🌀'},{id:'correia',l:'Correia',i:'⚙️'},
+  {id:'bateria',l:'Bateria',i:'🔋'},{id:'revisao',l:'Revisão',i:'📋'},
+  {id:'ac',l:'A/C',i:'❄️'},{id:'luzes',l:'Luzes',i:'💡'},
+  {id:'seguro',l:'Seguro',i:'🛡️'},{id:'lavagem',l:'Lavagem',i:'🧼'},
+  {id:'outro',l:'Outro',i:'🔧'}
+];
+
+// ══════════════════════════════════════
+// BASE DE DADOS — localStorage
+// ══════════════════════════════════════
+let DB = {cars:[], records:[]};
+
+function loadDB() {
+  try {
+    const s = localStorage.getItem('autolog_v2');
+    if(s) DB = JSON.parse(s);
+  } catch(e) { DB = {cars:[], records:[]}; }
+}
+function saveDB() {
+  localStorage.setItem('autolog_v2', JSON.stringify(DB));
+  flashSave();
+}
+function flashSave() {
+  const d = document.getElementById('saveDot');
+  d.classList.add('saved');
+  setTimeout(()=>d.classList.remove('saved'), 1200);
+}
+
+// ══════════════════════════════════════
+// EXPORT / IMPORT JSON
+// ══════════════════════════════════════
+function exportJSON() {
+  const json = JSON.stringify(DB, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'autolog_' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Ficheiro exportado!','ok');
+}
+
+function importJSON() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if(!parsed.cars || !parsed.records) throw new Error('Formato inválido');
+        if(!confirm(`Importar ${parsed.cars.length} carro(s) e ${parsed.records.length} registo(s)?\nOs dados actuais serão substituídos.`)) return;
+        DB = parsed;
+        saveDB();
+        renderCars(); renderRegs(); renderSum();
+        toast('Dados importados com sucesso!','ok');
+      } catch(err) {
+        toast('Ficheiro inválido','err');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function clearAll() {
+  if(!confirm('Apagar TODOS os carros e registos?\nEsta acção não pode ser desfeita.')) return;
+  DB = {cars:[], records:[]};
+  saveDB(); renderCars(); renderRegs(); renderSum();
+  toast('Dados apagados','err');
+}
+
+// ══════════════════════════════════════
+// NAV
+// ══════════════════════════════════════
+let activePage = 'carros';
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('page-'+id).classList.add('on');
+  if(btn) btn.classList.add('on');
+  activePage = id;
+  if(id==='registos') renderRegs();
+  if(id==='resumo')   renderSum();
+  if(id==='carros')   renderCars();
+}
+
+// ══════════════════════════════════════
+// MODAIS
+// ══════════════════════════════════════
+function openM(id) {
+  if(id==='m-rec') prepRec();
+  document.getElementById(id).classList.add('on');
+}
+function closeM(id) { document.getElementById(id).classList.remove('on'); }
+document.querySelectorAll('.ov').forEach(o=>{
+  o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('on'); });
+});
+
+// ══════════════════════════════════════
+// CARROS
+// ══════════════════════════════════════
+function addCar() {
+  const plate = document.getElementById('c-plate').value.trim();
+  const model = document.getElementById('c-model').value.trim();
+  if(!plate) { toast('Introduz a matrícula','err'); return; }
+  if(!model) { toast('Introduz o modelo','err'); return; }
+  if(DB.cars.find(c=>c.plate===plate)) { toast('Matrícula já existe!','err'); return; }
+  DB.cars.push({
+    id: Date.now().toString(),
+    plate, model,
+    year:  document.getElementById('c-year').value.trim(),
+    color: document.getElementById('c-color').value.trim()
+  });
+  saveDB(); closeM('m-car');
+  ['c-plate','c-model','c-year','c-color'].forEach(i=>document.getElementById(i).value='');
+  renderCars();
+  toast('Carro adicionado!','ok');
+}
+
+function deleteCar(id, e) {
+  e.stopPropagation();
+  const car = DB.cars.find(c=>c.id===id);
+  const n = DB.records.filter(r=>r.carId===id).length;
+  if(!confirm(`Eliminar ${car.plate}?\n${n} registo(s) serão apagados.`)) return;
+  DB.cars    = DB.cars.filter(c=>c.id!==id);
+  DB.records = DB.records.filter(r=>r.carId!==id);
+  saveDB(); renderCars();
+  toast('Carro eliminado','err');
+}
+
+function renderCars() {
+  const el = document.getElementById('car-list');
+  if(!DB.cars.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">🚗</div><div class="empty-t">Sem carros</div><p>Adiciona o teu primeiro carro abaixo</p></div>`;
+    return;
+  }
+  el.innerHTML = DB.cars.map(car => {
+    const recs  = DB.records.filter(r=>r.carId===car.id);
+    const total = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0), 0);
+    const last  = [...recs].sort((a,b)=>b.date.localeCompare(a.date))[0];
+    return `
+    <div class="card car-card" onclick="showDet('${car.id}')">
+      <button class="xbtn" onclick="deleteCar('${car.id}',event)">✕</button>
+      <div class="plate">${car.plate}</div>
+      <div class="model">${car.model}</div>
+      ${(car.year||car.color)?`<div class="year-color">${[car.year,car.color].filter(Boolean).join(' · ')}</div>`:''}
+      <div class="car-stats">
+        <div class="cstat"><span class="cstat-val">${recs.length}</span><span class="cstat-lbl">Registos</span></div>
+        <div class="cstat"><span class="cstat-val">${fEur(total)}</span><span class="cstat-lbl">Gasto</span></div>
+        <div class="cstat"><span class="cstat-val">${last?fKm(last.km):'—'}</span><span class="cstat-lbl">Último km</span></div>
+        <div class="cstat"><span class="cstat-val">${last?fDate(last.date):'—'}</span><span class="cstat-lbl">Data</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+// REGISTOS
+// ══════════════════════════════════════
+let selTipo = null;
+let activeFilt = null;
+
+function prepRec(preCarId=null) {
+  const sel = document.getElementById('r-car');
+  sel.innerHTML = DB.cars.map(c=>`<option value="${c.id}"${c.id===preCarId?' selected':''}>${c.plate} — ${c.model}</option>`).join('');
+  if(!DB.cars.length) sel.innerHTML = '<option value="">Adiciona um carro primeiro</option>';
+  document.getElementById('r-date').value = new Date().toISOString().slice(0,10);
+  ['r-km','r-cost','r-notes','r-custom'].forEach(i=>document.getElementById(i).value='');
+  selTipo = null; renderChips();
+}
+function renderChips() {
+  document.getElementById('tchips').innerHTML = TIPOS.map(t=>`
+    <button class="chip${selTipo===t.id?' on':''}" onclick="pickTipo('${t.id}')">${t.i} ${t.l}</button>
+  `).join('');
+  document.getElementById('cfg').style.display = selTipo==='outro'?'block':'none';
+}
+function pickTipo(id) { selTipo=id; renderChips(); }
+
+function addRec() {
+  const carId = document.getElementById('r-car').value;
+  const date  = document.getElementById('r-date').value;
+  if(!carId || !DB.cars.find(c=>c.id===carId)) { toast('Seleciona um carro','err'); return; }
+  if(!date)  { toast('Indica a data','err'); return; }
+  if(!selTipo) { toast('Escolhe o tipo de intervenção','err'); return; }
+  const typeName = selTipo==='outro'
+    ? (document.getElementById('r-custom').value.trim() || 'Outro')
+    : TIPOS.find(t=>t.id===selTipo).l;
+  DB.records.push({
+    id: Date.now().toString(), carId, date,
+    km:   document.getElementById('r-km').value,
+    cost: document.getElementById('r-cost').value,
+    type: selTipo, typeName,
+    notes: document.getElementById('r-notes').value.trim()
+  });
+  saveDB(); closeM('m-rec');
+  renderCars(); renderRegs();
+  toast('Registo guardado!','ok');
+}
+
+function deleteRec(id) {
+  if(!confirm('Eliminar este registo?')) return;
+  DB.records = DB.records.filter(r=>r.id!==id);
+  saveDB(); renderCars(); renderRegs();
+  toast('Registo eliminado','err');
+}
+
+function renderRegs() {
+  // Filter bar
+  const usedCars = [...new Set(DB.records.map(r=>r.carId))]
+    .map(id=>DB.cars.find(c=>c.id===id)).filter(Boolean);
+  document.getElementById('fbar').innerHTML =
+    `<button class="chip${!activeFilt?' on':''}" onclick="setFilt(null)">Todos</button>` +
+    usedCars.map(c=>`<button class="chip${activeFilt===c.id?' on':''}" onclick="setFilt('${c.id}')">${c.plate}</button>`).join('');
+
+  let recs = [...DB.records].sort((a,b)=>b.date.localeCompare(a.date));
+  if(activeFilt) recs = recs.filter(r=>r.carId===activeFilt);
+
+  const el = document.getElementById('rec-list');
+  if(!recs.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">🔧</div><div class="empty-t">Sem registos</div><p>Toca em + para adicionar</p></div>`;
+    return;
+  }
+  el.innerHTML = recs.map(r=>recHTML(r)).join('');
+}
+function setFilt(id) { activeFilt=id; renderRegs(); }
+
+function recHTML(r) {
+  const car = DB.cars.find(c=>c.id===r.carId);
+  const t   = TIPOS.find(t=>t.id===r.type)||{i:'🔧'};
+  return `<div class="rec">
+    <div class="rec-ico">${t.i}</div>
+    <div class="rec-body">
+      <div class="rec-type">${r.typeName}</div>
+      <div class="rec-meta">${fDate(r.date)}${car?' · '+car.plate+' '+car.model:''}</div>
+      ${r.notes?`<div class="rec-note">${r.notes}</div>`:''}
+    </div>
+    <div class="rec-right">
+      <div class="rec-cost">${r.cost?fEur(parseFloat(r.cost)):'—'}</div>
+      <div class="rec-km">${r.km?fKm(r.km):'—'}</div>
+    </div>
+    <button class="xbtn" onclick="deleteRec('${r.id}')">✕</button>
+  </div>`;
+}
+
+// ══════════════════════════════════════
+// DETALHE CARRO
+// ══════════════════════════════════════
+function showDet(carId) {
+  const car  = DB.cars.find(c=>c.id===carId);
+  if(!car) return;
+  const recs = [...DB.records.filter(r=>r.carId===carId)].sort((a,b)=>b.date.localeCompare(a.date));
+  const tot  = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
+  document.getElementById('det-hdr').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div class="plate">${car.plate}</div>
+      <div class="model">${car.model}${car.year?' · '+car.year:''}</div>
+      ${car.color?`<div class="year-color">${car.color}</div>`:''}
+      <div style="font-size:12px;color:var(--sub);margin-top:6px">${recs.length} registos · ${fEur(tot)} total</div>
+    </div>`;
+  document.getElementById('det-add-btn').onclick = ()=>{ closeM('m-det'); prepRec(carId); openM('m-rec'); };
+  const listEl = document.getElementById('det-recs');
+  listEl.innerHTML = recs.length
+    ? recs.map(r=>recHTML(r)).join('')
+    : `<div class="empty" style="padding:24px 0"><div class="empty-ico">📋</div><div class="empty-t">Sem registos</div></div>`;
+  openM('m-det');
+}
+
+// ══════════════════════════════════════
+// RESUMO
+// ══════════════════════════════════════
+function renderSum() {
+  const total = DB.records.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
+  const freq  = {};
+  DB.records.forEach(r=>{ freq[r.typeName]=(freq[r.typeName]||0)+1; });
+  const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+
+  document.getElementById('sgrid').innerHTML = `
+    <div class="scard"><div class="slbl">Carros</div><div class="sval">${DB.cars.length}</div></div>
+    <div class="scard"><div class="slbl">Registos</div><div class="sval">${DB.records.length}</div></div>
+    <div class="scard" style="grid-column:1/-1">
+      <div class="slbl">Total Gasto</div>
+      <div class="sval" style="font-size:32px">${fEur(total)}</div>
+      <div class="ssub">em todas as intervenções</div>
+    </div>
+    <div class="scard" style="grid-column:1/-1">
+      <div class="slbl">Mais Frequente</div>
+      <div class="sval" style="font-size:22px">${top}</div>
+    </div>`;
+
+  document.getElementById('car-sum').innerHTML = DB.cars.map(car=>{
+    const recs = DB.records.filter(r=>r.carId===car.id);
+    const tot  = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
+    const byT  = {};
+    recs.forEach(r=>{ byT[r.typeName]=(byT[r.typeName]||0)+1; });
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div class="plate" style="font-size:17px">${car.plate}</div><div style="font-size:13px;color:var(--sub)">${car.model}</div></div>
+        <div style="text-align:right">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--a)">${fEur(tot)}</div>
+          <div style="font-size:11px;color:var(--sub)">${recs.length} registos</div>
+        </div>
+      </div>
+      ${Object.keys(byT).length?`<div style="margin-top:10px">${Object.entries(byT).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="badge">${k} ×${v}</span>`).join('')}</div>`:''}
+    </div>`;
+  }).join('') || '<div class="empty"><div class="empty-t">Sem dados</div></div>';
+}
+
+// ══════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════
+let toastTimer;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type?' '+type:'');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2400);
+}
+
+// ══════════════════════════════════════
+// FORMATAÇÃO
+// ══════════════════════════════════════
+function fDate(d) {
+  if(!d) return '—';
+  const [y,m,dd] = d.split('-');
+  return `${dd}/${m}/${y}`;
+}
+function fKm(k) { return Number(k).toLocaleString('pt-PT')+' km'; }
+function fEur(v) { return Number(v).toLocaleString('pt-PT',{style:'currency',currency:'EUR'}); }
+
+// ══════════════════════════════════════
+// ARRANQUE
+// ══════════════════════════════════════
+loadDB();
+renderCars();
+</script>
+</body>
+</html>
