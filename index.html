@@ -320,7 +320,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);display:flex
   <div class="modal">
     <div class="mhandle"></div>
     <div class="mtitle">Novo Carro</div>
-    <div class="fg"><label class="fl">Matrícula</label><input class="fi" id="c-plate" placeholder="46-NP-09" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9\-]/g,'')"></div>
+    
     <div class="fg"><label class="fl">Marca e Modelo</label><input class="fi" id="c-model" placeholder="Seat Ibiza"></div>
     <div class="row">
       <div class="fg"><label class="fl">Ano</label><input class="fi" id="c-year" type="number" placeholder="2018" min="1900" max="2099"></div>
@@ -489,19 +489,16 @@ document.querySelectorAll('.ov').forEach(o=>{
 // CARROS
 // ══════════════════════════════════════
 function addCar() {
-  const plate = document.getElementById('c-plate').value.trim();
   const model = document.getElementById('c-model').value.trim();
-  if(!plate) { toast('Introduz a matrícula','err'); return; }
   if(!model) { toast('Introduz o modelo','err'); return; }
-  if(DB.cars.find(c=>c.plate===plate)) { toast('Matrícula já existe!','err'); return; }
   DB.cars.push({
     id: Date.now().toString(),
-    plate, model,
+    model,
     year:  document.getElementById('c-year').value.trim(),
     color: document.getElementById('c-color').value.trim()
   });
   saveDB(); closeM('m-car');
-  ['c-plate','c-model','c-year','c-color'].forEach(i=>document.getElementById(i).value='');
+  ['c-model','c-year','c-color'].forEach(i=>document.getElementById(i).value='');
   renderCars();
   toast('Carro adicionado!','ok');
 }
@@ -510,7 +507,7 @@ function deleteCar(id, e) {
   e.stopPropagation();
   const car = DB.cars.find(c=>c.id===id);
   const n = DB.records.filter(r=>r.carId===id).length;
-  if(!confirm(`Eliminar ${car.plate}?\n${n} registo(s) serão apagados.`)) return;
+  if(!confirm(`Eliminar ${car.model}?\n${n} registo(s) serão apagados.`)) return;
   DB.cars    = DB.cars.filter(c=>c.id!==id);
   DB.records = DB.records.filter(r=>r.carId!==id);
   saveDB(); renderCars();
@@ -530,8 +527,7 @@ function renderCars() {
     return `
     <div class="card car-card" onclick="showDet('${car.id}')">
       <button class="xbtn" onclick="deleteCar('${car.id}',event)">✕</button>
-      <div class="plate">${car.plate}</div>
-      <div class="model">${car.model}</div>
+      <div class="plate" style="font-size:18px;letter-spacing:1px">${car.model}</div>
       ${(car.year||car.color)?`<div class="year-color">${[car.year,car.color].filter(Boolean).join(' · ')}</div>`:''}
       <div class="car-stats">
         <div class="cstat"><span class="cstat-val">${recs.length}</span><span class="cstat-lbl">Registos</span></div>
@@ -551,7 +547,7 @@ let activeFilt = null;
 
 function prepRec(preCarId=null) {
   const sel = document.getElementById('r-car');
-  sel.innerHTML = DB.cars.map(c=>`<option value="${c.id}"${c.id===preCarId?' selected':''}>${c.plate} — ${c.model}</option>`).join('');
+  sel.innerHTML = DB.cars.map(c=>`<option value="${c.id}"${c.id===preCarId?' selected':''}>${c.model}${c.year?' ('+c.year+')':''}</option>`).join('');
   if(!DB.cars.length) sel.innerHTML = '<option value="">Adiciona um carro primeiro</option>';
   document.getElementById('r-date').value = new Date().toISOString().slice(0,10);
   ['r-km','r-cost','r-notes','r-custom'].forEach(i=>document.getElementById(i).value='');
@@ -599,7 +595,7 @@ function renderRegs() {
     .map(id=>DB.cars.find(c=>c.id===id)).filter(Boolean);
   document.getElementById('fbar').innerHTML =
     `<button class="chip${!activeFilt?' on':''}" onclick="setFilt(null)">Todos</button>` +
-    usedCars.map(c=>`<button class="chip${activeFilt===c.id?' on':''}" onclick="setFilt('${c.id}')">${c.plate}</button>`).join('');
+    usedCars.map(c=>`<button class="chip${activeFilt===c.id?' on':''}" onclick="setFilt('${c.id}')">${c.model}</button>`).join('');
 
   let recs = [...DB.records].sort((a,b)=>b.date.localeCompare(a.date));
   if(activeFilt) recs = recs.filter(r=>r.carId===activeFilt);
@@ -620,7 +616,7 @@ function recHTML(r) {
     <div class="rec-ico">${t.i}</div>
     <div class="rec-body">
       <div class="rec-type">${r.typeName}</div>
-      <div class="rec-meta">${fDate(r.date)}${car?' · '+car.plate+' '+car.model:''}</div>
+      <div class="rec-meta">${fDate(r.date)}${car?' · '+car.model:''}</div>
       ${r.notes?`<div class="rec-note">${r.notes}</div>`:''}
     </div>
     <div class="rec-right">
@@ -641,8 +637,7 @@ function showDet(carId) {
   const tot  = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
   document.getElementById('det-hdr').innerHTML = `
     <div style="margin-bottom:14px">
-      <div class="plate">${car.plate}</div>
-      <div class="model">${car.model}${car.year?' · '+car.year:''}</div>
+      <div class="plate" style="font-size:18px;letter-spacing:1px">${car.model}${car.year?' · '+car.year:''}</div>
       ${car.color?`<div class="year-color">${car.color}</div>`:''}
       <div style="font-size:12px;color:var(--sub);margin-top:6px">${recs.length} registos · ${fEur(tot)} total</div>
     </div>`;
@@ -683,7 +678,7 @@ function renderSum() {
     recs.forEach(r=>{ byT[r.typeName]=(byT[r.typeName]||0)+1; });
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div class="plate" style="font-size:17px">${car.plate}</div><div style="font-size:13px;color:var(--sub)">${car.model}</div></div>
+        <div><div class="plate" style="font-size:17px">${car.model}${car.year?' · '+car.year:''}</div></div>
         <div style="text-align:right">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--a)">${fEur(tot)}</div>
           <div style="font-size:11px;color:var(--sub)">${recs.length} registos</div>
