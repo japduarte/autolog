@@ -276,19 +276,37 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);display:flex
     <div class="page-inner">
       <div class="sh">Guardar &amp; Restaurar</div>
 
-      <div class="backup-panel">
-        <div style="font-size:15px;font-weight:700;margin-bottom:4px">💾 Exportar dados</div>
-        <div class="backup-info">Descarrega um ficheiro <strong>autolog.json</strong> com todos os teus dados. Guarda-o na pasta que quiseres no telemóvel.</div>
-        <div class="backup-row">
-          <button class="btn btn-p" onclick="exportJSON()">⬇ Exportar JSON</button>
+      <!-- GOOGLE DRIVE -->
+      <div class="backup-panel" id="gdrive-panel">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">☁️ Google Drive</div>
+        <div class="backup-info" id="gdrive-status">Liga a tua conta Google para fazer backup automático no Drive.</div>
+        <div class="backup-row" id="gdrive-btns">
+          <button class="btn btn-p" onclick="gdriveLogin()" id="btn-gdrive-login">🔑 Ligar conta Google</button>
+        </div>
+        <div id="gdrive-user" style="display:none;margin-top:10px">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--s1);border-radius:9px;border:1px solid var(--border)">
+            <img id="gdrive-avatar" src="" style="width:32px;height:32px;border-radius:50%;display:none">
+            <div style="flex:1;min-width:0">
+              <div id="gdrive-name" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+              <div id="gdrive-email" style="font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+            </div>
+            <button class="btn btn-g" style="font-size:11px;padding:6px 10px" onclick="gdriveLogout()">Sair</button>
+          </div>
+          <div class="backup-row" style="margin-top:10px">
+            <button class="btn btn-p" onclick="gdriveSave()">⬆ Guardar no Drive</button>
+            <button class="btn btn-g" onclick="gdriveLoad()">⬇ Restaurar do Drive</button>
+          </div>
+          <div id="gdrive-last" style="font-size:11px;color:var(--sub);margin-top:8px;text-align:center"></div>
         </div>
       </div>
 
+      <!-- LOCAL -->
       <div class="backup-panel">
-        <div style="font-size:15px;font-weight:700;margin-bottom:4px">📂 Importar dados</div>
-        <div class="backup-info">Carrega um ficheiro <strong>autolog.json</strong> previamente exportado. Os dados actuais serão substituídos.</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">📁 Backup Local</div>
+        <div class="backup-info">Exporta/importa um ficheiro JSON no teu telemóvel.</div>
         <div class="backup-row">
-          <button class="btn btn-g" onclick="importJSON()">⬆ Importar JSON</button>
+          <button class="btn btn-p" onclick="exportJSON()">⬇ Exportar</button>
+          <button class="btn btn-g" onclick="importJSON()">⬆ Importar</button>
         </div>
       </div>
 
@@ -456,6 +474,203 @@ function clearAll() {
   DB = {cars:[], records:[]};
   saveDB(); renderCars(); renderRegs(); renderSum();
   toast('Dados apagados','err');
+}
+
+// ══════════════════════════════════════
+// GOOGLE DRIVE — OAuth2 + Drive API
+// ══════════════════════════════════════
+const GDRIVE_CLIENT_ID = '853627522281-duuvpar60nh0blqlgrdad13dt6vegl5h.apps.googleusercontent.com';
+const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file profile email';
+const GDRIVE_FILE_NAME = 'autolog_backup.json';
+
+let gToken      = null;  // access token
+let gFileId     = null;  // Drive file ID (se já existe)
+let gUserInfo   = null;
+
+// Carregar token guardado
+(function loadGToken() {
+  try {
+    const saved = localStorage.getItem('gdrive_token');
+    if(saved) {
+      const t = JSON.parse(saved);
+      // Verificar se não expirou (tokens duram 1h)
+      if(t.expires_at && Date.now() < t.expires_at) {
+        gToken = t.access_token;
+        gFileId = t.file_id || null;
+        fetchUserInfo();
+      } else {
+        localStorage.removeItem('gdrive_token');
+      }
+    }
+  } catch(e) {}
+})();
+
+function gdriveLogin() {
+  const params = new URLSearchParams({
+    client_id:     GDRIVE_CLIENT_ID,
+    redirect_uri:  location.origin + location.pathname,
+    response_type: 'token',
+    scope:         GDRIVE_SCOPE,
+    include_granted_scopes: 'true',
+    state: 'gdrive_auth'
+  });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params;
+}
+
+function gdriveLogout() {
+  gToken = null; gFileId = null; gUserInfo = null;
+  localStorage.removeItem('gdrive_token');
+  renderGDriveUI(false);
+  toast('Conta Google desligada','');
+}
+
+// Tratar redirect OAuth (hash com access_token)
+(function handleOAuthRedirect() {
+  const hash = location.hash.substring(1);
+  if(!hash.includes('access_token')) return;
+  const params = new URLSearchParams(hash);
+  if(params.get('state') !== 'gdrive_auth') return;
+  gToken = params.get('access_token');
+  const expiresIn = parseInt(params.get('expires_in') || '3600');
+  // Guardar token
+  const toSave = {
+    access_token: gToken,
+    expires_at: Date.now() + (expiresIn - 60) * 1000,
+    file_id: null
+  };
+  localStorage.setItem('gdrive_token', JSON.stringify(toSave));
+  // Limpar hash do URL
+  history.replaceState(null, '', location.pathname);
+  // Ir para tab backup
+  fetchUserInfo();
+  showPage('backup', document.querySelector('.btn-backup'));
+  toast('Conta Google ligada!','ok');
+})();
+
+async function fetchUserInfo() {
+  if(!gToken) return;
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: 'Bearer ' + gToken }
+    });
+    if(!r.ok) { gdriveLogout(); return; }
+    gUserInfo = await r.json();
+    renderGDriveUI(true);
+    // Procurar ficheiro existente no Drive
+    findDriveFile();
+  } catch(e) { renderGDriveUI(false); }
+}
+
+async function findDriveFile() {
+  if(!gToken) return;
+  try {
+    const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)`,
+      { headers: { Authorization: 'Bearer ' + gToken } }
+    );
+    const data = await r.json();
+    if(data.files && data.files.length > 0) {
+      gFileId = data.files[0].id;
+      const mod = new Date(data.files[0].modifiedTime);
+      document.getElementById('gdrive-last').textContent =
+        'Último backup: ' + mod.toLocaleDateString('pt-PT') + ' às ' + mod.toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'});
+      // Guardar fileId
+      try {
+        const t = JSON.parse(localStorage.getItem('gdrive_token') || '{}');
+        t.file_id = gFileId;
+        localStorage.setItem('gdrive_token', JSON.stringify(t));
+      } catch(e){}
+    } else {
+      document.getElementById('gdrive-last').textContent = 'Ainda sem backup no Drive.';
+    }
+  } catch(e) {}
+}
+
+async function gdriveSave() {
+  if(!gToken) { toast('Liga a conta Google primeiro','err'); return; }
+  toast('A guardar no Drive…','');
+  const json = JSON.stringify(DB, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  try {
+    let r;
+    if(gFileId) {
+      // Actualizar ficheiro existente
+      r = await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${gFileId}?uploadType=media`,
+        { method:'PATCH', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: json }
+      );
+    } else {
+      // Criar ficheiro novo com metadados
+      const meta = JSON.stringify({ name: GDRIVE_FILE_NAME, mimeType: 'application/json' });
+      const form = new FormData();
+      form.append('metadata', new Blob([meta], {type:'application/json'}));
+      form.append('file', blob);
+      r = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+        { method:'POST', headers:{ Authorization:'Bearer '+gToken }, body: form }
+      );
+      const created = await r.json();
+      gFileId = created.id;
+      // Guardar fileId
+      try {
+        const t = JSON.parse(localStorage.getItem('gdrive_token') || '{}');
+        t.file_id = gFileId;
+        localStorage.setItem('gdrive_token', JSON.stringify(t));
+      } catch(e){}
+    }
+    if(r.ok) {
+      const now = new Date();
+      document.getElementById('gdrive-last').textContent =
+        'Último backup: ' + now.toLocaleDateString('pt-PT') + ' às ' + now.toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'});
+      toast('Guardado no Google Drive!','ok');
+    } else {
+      const err = await r.json();
+      if(err.error && err.error.code === 401) { gdriveLogout(); toast('Sessão expirada, liga novamente','err'); }
+      else toast('Erro ao guardar no Drive','err');
+    }
+  } catch(e) { toast('Erro de ligação','err'); }
+}
+
+async function gdriveLoad() {
+  if(!gToken) { toast('Liga a conta Google primeiro','err'); return; }
+  if(!gFileId) { toast('Sem backup no Drive ainda','err'); return; }
+  if(!confirm('Restaurar dados do Google Drive?\nOs dados actuais serão substituídos.')) return;
+  toast('A carregar do Drive…','');
+  try {
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${gFileId}?alt=media`,
+      { headers: { Authorization: 'Bearer ' + gToken } }
+    );
+    if(!r.ok) { toast('Erro ao carregar do Drive','err'); return; }
+    const parsed = await r.json();
+    if(!parsed.cars || !parsed.records) { toast('Ficheiro inválido','err'); return; }
+    DB = parsed;
+    saveDB(); renderCars(); renderRegs(); renderSum();
+    toast('Dados restaurados do Drive!','ok');
+  } catch(e) { toast('Erro ao restaurar','err'); }
+}
+
+function renderGDriveUI(loggedIn) {
+  const loginBtn  = document.getElementById('btn-gdrive-login');
+  const userPanel = document.getElementById('gdrive-user');
+  const status    = document.getElementById('gdrive-status');
+  if(loggedIn && gUserInfo) {
+    loginBtn.style.display  = 'none';
+    userPanel.style.display = 'block';
+    status.textContent = 'Conta ligada. Os dados ficam no teu Drive pessoal.';
+    document.getElementById('gdrive-name').textContent  = gUserInfo.name  || '';
+    document.getElementById('gdrive-email').textContent = gUserInfo.email || '';
+    if(gUserInfo.picture) {
+      const img = document.getElementById('gdrive-avatar');
+      img.src = gUserInfo.picture;
+      img.style.display = 'block';
+    }
+  } else {
+    loginBtn.style.display  = 'inline-flex';
+    userPanel.style.display = 'none';
+    status.textContent = 'Liga a tua conta Google para fazer backup no Drive.';
+  }
 }
 
 // ══════════════════════════════════════
