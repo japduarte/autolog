@@ -561,21 +561,34 @@ async function fetchUserInfo() {
   } catch(e) { renderGDriveUI(false); }
 }
 
+// Utilitário XHR para compatibilidade máxima mobile
+function xhrRequest(method, url, headers, body) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    Object.entries(headers).forEach(([k,v]) => xhr.setRequestHeader(k, v));
+    xhr.timeout = 15000;
+    xhr.onload = () => resolve({ status: xhr.status, ok: xhr.status >= 200 && xhr.status < 300, text: xhr.responseText });
+    xhr.onerror = () => reject(new Error('Erro de rede (XHR)'));
+    xhr.ontimeout = () => reject(new Error('Timeout'));
+    xhr.send(body || null);
+  });
+}
+
 async function findDriveFile() {
   if(!gToken) return;
   try {
-    const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
-    const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)`,
-      { headers: { Authorization: 'Bearer ' + gToken } }
+    const q = encodeURIComponent("name='" + GDRIVE_FILE_NAME + "' and trashed=false");
+    const r = await xhrRequest('GET',
+      'https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name,modifiedTime)',
+      { 'Authorization': 'Bearer ' + gToken }
     );
-    const data = await r.json();
+    const data = JSON.parse(r.text);
     if(data.files && data.files.length > 0) {
       gFileId = data.files[0].id;
       const mod = new Date(data.files[0].modifiedTime);
       document.getElementById('gdrive-last').textContent =
         'Último backup: ' + mod.toLocaleDateString('pt-PT') + ' às ' + mod.toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'});
-      // Guardar fileId
       try {
         const t = JSON.parse(localStorage.getItem('gdrive_token') || '{}');
         t.file_id = gFileId;
@@ -584,40 +597,49 @@ async function findDriveFile() {
     } else {
       document.getElementById('gdrive-last').textContent = 'Ainda sem backup no Drive.';
     }
-  } catch(e) {}
+  } catch(e) {
+    document.getElementById('gdrive-last').textContent = 'Não foi possível verificar o Drive.';
+  }
 }
 
 async function gdriveSave() {
   if(!gToken) { toast('Liga a conta Google primeiro','err'); return; }
   toast('A guardar no Drive…','');
   const json = JSON.stringify(DB, null, 2);
-  const blob = new Blob([json], {type:'application/json'});
   try {
     let r;
     if(gFileId) {
       // Actualizar ficheiro existente
-      r = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${gFileId}?uploadType=media`,
-        { method:'PATCH', headers:{ Authorization:'Bearer '+gToken, 'Content-Type':'application/json' }, body: json }
+      r = await xhrRequest('PATCH',
+        'https://www.googleapis.com/upload/drive/v3/files/' + gFileId + '?uploadType=media',
+        { 'Authorization': 'Bearer ' + gToken, 'Content-Type': 'application/json' },
+        json
       );
     } else {
-      // Criar ficheiro novo com metadados
+      // Criar ficheiro novo via multipart manual
+      const boundary = 'autolog_boundary_' + Date.now();
       const meta = JSON.stringify({ name: GDRIVE_FILE_NAME, mimeType: 'application/json' });
-      const form = new FormData();
-      form.append('metadata', new Blob([meta], {type:'application/json'}));
-      form.append('file', blob);
-      r = await fetch(
+      const body = '--' + boundary + '\r\n'
+        + 'Content-Type: application/json; charset=UTF-8\r\n\r\n'
+        + meta + '\r\n'
+        + '--' + boundary + '\r\n'
+        + 'Content-Type: application/json\r\n\r\n'
+        + json + '\r\n'
+        + '--' + boundary + '--';
+      r = await xhrRequest('POST',
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
-        { method:'POST', headers:{ Authorization:'Bearer '+gToken }, body: form }
+        { 'Authorization': 'Bearer ' + gToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
+        body
       );
-      const created = await r.json();
-      gFileId = created.id;
-      // Guardar fileId
-      try {
-        const t = JSON.parse(localStorage.getItem('gdrive_token') || '{}');
-        t.file_id = gFileId;
-        localStorage.setItem('gdrive_token', JSON.stringify(t));
-      } catch(e){}
+      if(r.ok) {
+        const created = JSON.parse(r.text);
+        gFileId = created.id;
+        try {
+          const t = JSON.parse(localStorage.getItem('gdrive_token') || '{}');
+          t.file_id = gFileId;
+          localStorage.setItem('gdrive_token', JSON.stringify(t));
+        } catch(e){}
+      }
     }
     if(r.ok) {
       const now = new Date();
@@ -625,11 +647,19 @@ async function gdriveSave() {
         'Último backup: ' + now.toLocaleDateString('pt-PT') + ' às ' + now.toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'});
       toast('Guardado no Google Drive!','ok');
     } else {
-      const err = await r.json();
-      if(err.error && err.error.code === 401) { gdriveLogout(); toast('Sessão expirada, liga novamente','err'); }
-      else toast('Erro ao guardar no Drive','err');
+      let errMsg = 'Erro ' + r.status;
+      try {
+        const errData = JSON.parse(r.text);
+        if(errData.error && errData.error.code === 401) {
+          gdriveLogout(); toast('Sessão expirada — liga novamente','err'); return;
+        }
+        if(errData.error && errData.error.message) errMsg = errData.error.message;
+      } catch(e){}
+      toast(errMsg,'err');
     }
-  } catch(e) { toast('Erro de ligação','err'); }
+  } catch(e) {
+    toast('Erro: ' + e.message,'err');
+  }
 }
 
 async function gdriveLoad() {
@@ -638,17 +668,19 @@ async function gdriveLoad() {
   if(!confirm('Restaurar dados do Google Drive?\nOs dados actuais serão substituídos.')) return;
   toast('A carregar do Drive…','');
   try {
-    const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${gFileId}?alt=media`,
-      { headers: { Authorization: 'Bearer ' + gToken } }
+    const r = await xhrRequest('GET',
+      'https://www.googleapis.com/drive/v3/files/' + gFileId + '?alt=media',
+      { 'Authorization': 'Bearer ' + gToken }
     );
-    if(!r.ok) { toast('Erro ao carregar do Drive','err'); return; }
-    const parsed = await r.json();
+    if(!r.ok) { toast('Erro ' + r.status + ' ao carregar','err'); return; }
+    const parsed = JSON.parse(r.text);
     if(!parsed.cars || !parsed.records) { toast('Ficheiro inválido','err'); return; }
     DB = parsed;
     saveDB(); renderCars(); renderRegs(); renderSum();
     toast('Dados restaurados do Drive!','ok');
-  } catch(e) { toast('Erro ao restaurar','err'); }
+  } catch(e) {
+    toast('Erro: ' + e.message,'err');
+  }
 }
 
 function renderGDriveUI(loggedIn) {
