@@ -2,21 +2,21 @@
 // TIPOS DE INTERVENÇÃO
 // ══════════════════════════════════════
 const TIPOS=[
-  {id:'ac',l:'A/C',i:'❄️'}
-  ,{id:'bateria',l:'Bateria',i:'🔋'}
-  ,{id:'correia',l:'Correia',i:'⚙️'}
-  ,{id:'filtrocombo',l:'Filtro Combustível',i:'🌀'}
-  ,{id:'filtroleo',l:'Filtro Óleo',i:'🌀'}
-  ,{id:'filtrohabi',l:'Filtro Habitáculo',i:'🌀'}
-  ,{id:'inspecao',l:'Inspeção',i:'🔍'}
-  ,{id:'lavagem',l:'Lavagem',i:'🧼'}
-  ,{id:'luzes',l:'Luzes',i:'💡'}
-  ,{id:'oleo',l:'Óleo',i:'🛢️'},
-  ,{id:'outro',l:'Outro',i:'🔧'}
-  ,{id:'pneus',l:'Pneus',i:'⚫'}
-  ,{id:'travoes',l:'Travões',i:'🔴'}
-  ,{id:'revisao',l:'Revisão',i:'📋'}
-  ,{id:'seguro',l:'Seguro',i:'🛡️'}
+  {id:'ac',l:'A/C',i:'❄️'},
+  {id:'bateria',l:'Bateria',i:'🔋'},
+  {id:'correia',l:'Correia',i:'⚙️'},
+  {id:'filtrocombo',l:'Filtro Combustível',i:'🌀'},
+  {id:'filtroleo',l:'Filtro Óleo',i:'🌀'},
+  {id:'filtrohabi',l:'Filtro Habitáculo',i:'🌀'},
+  {id:'inspecao',l:'Inspeção',i:'🔍'},
+  {id:'lavagem',l:'Lavagem',i:'🧼'},
+  {id:'luzes',l:'Luzes',i:'💡'},
+  {id:'oleo',l:'Óleo',i:'🛢️'},
+  {id:'outro',l:'Outro',i:'🔧'},
+  {id:'pneus',l:'Pneus',i:'⚫'},
+  {id:'travoes',l:'Travões',i:'🔴'},
+  {id:'revisao',l:'Revisão',i:'📋'},
+  {id:'seguro',l:'Seguro',i:'🛡️'}
 ];
 
 // ══════════════════════════════════════
@@ -473,7 +473,7 @@ function addRec() {
   const types = [...selTipos];
   const typeNames = types.map(type => type==='outro'
     ? (document.getElementById('r-custom').value.trim() || 'Outro')
-    : TIPOS.find(t=>t.id===type).l);
+    : TIPOS.find(t=>t?.id===type)?.l || type);
   const record = {
     id: editingRecId || Date.now().toString(), carId, date,
     km:   document.getElementById('r-km').value,
@@ -529,7 +529,7 @@ function setFilt(id) { activeFilt=id; renderRegs(); }
 
 function recHTML(r) {
   const car = DB.cars.find(c=>c.id===r.carId);
-  const t   = TIPOS.find(t=>t.id===recordTypeIds(r)[0])||{i:'🔧'};
+  const t   = TIPOS.find(t=>t?.id===recordTypeIds(r)[0])||{i:'🔧'};
   const names = recordTypeNames(r);
   return `<div class="rec">
     <div class="rec-ico">${t.i}</div>
@@ -542,8 +542,10 @@ function recHTML(r) {
       <div class="rec-cost">${r.cost?fEur(parseFloat(r.cost)):'—'}</div>
       <div class="rec-km">${r.km?escapeHTML(fKm(r.km)):'—'}</div>
     </div>
-    <button class="xbtn edit-btn" onclick="editRec(${jsString(r.id)})" aria-label="Editar registo">✎</button>
-    <button class="xbtn" onclick="deleteRec(${jsString(r.id)})">✕</button>
+    <div class="rec-actions">
+      <button class="btn btn-g" onclick="editRec(${jsString(r.id)})">✎ Editar</button>
+      <button class="btn btn-d rec-delete" onclick="deleteRec(${jsString(r.id)})">Eliminar</button>
+    </div>
   </div>`;
 }
 
