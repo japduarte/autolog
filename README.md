@@ -1,4 +1,4 @@
-# AutoLog
+# AutoLog JAPD
 
 Página HTML autónoma para registar e consultar as intervenções dos veículos pessoais.
 
