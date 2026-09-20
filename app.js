@@ -16,10 +16,27 @@ const TIPOS=[
 // ══════════════════════════════════════
 let DB = {cars:[], records:[]};
 
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[char]);
+}
+
+function jsString(value) {
+  return escapeHTML(JSON.stringify(String(value ?? '')));
+}
+
+function validDB(data) {
+  return data && Array.isArray(data.cars) && Array.isArray(data.records);
+}
+
 function loadDB() {
   try {
     const s = localStorage.getItem('autolog_v2');
-    if(s) DB = JSON.parse(s);
+    if(s) {
+      const parsed = JSON.parse(s);
+      if(validDB(parsed)) DB = parsed;
+    }
   } catch(e) { DB = {cars:[], records:[]}; }
 }
 function saveDB() {
@@ -60,7 +77,7 @@ function importJSON() {
     reader.onload = ev => {
       try {
         const parsed = JSON.parse(ev.target.result);
-        if(!parsed.cars || !parsed.records) throw new Error('Formato inválido');
+        if(!validDB(parsed)) throw new Error('Formato inválido');
         if(!confirm(`Importar ${parsed.cars.length} carro(s) e ${parsed.records.length} registo(s)?\nOs dados actuais serão substituídos.`)) return;
         DB = parsed;
         saveDB();
@@ -280,7 +297,7 @@ async function gdriveLoad() {
     );
     if(!r.ok) { toast('Erro ' + r.status + ' ao carregar','err'); return; }
     const parsed = JSON.parse(r.text);
-    if(!parsed.cars || !parsed.records) { toast('Ficheiro inválido','err'); return; }
+    if(!validDB(parsed)) { toast('Ficheiro inválido','err'); return; }
     DB = parsed;
     saveDB(); renderCars(); renderRegs(); renderSum();
     toast('Dados restaurados do Drive!','ok');
@@ -378,15 +395,15 @@ function renderCars() {
     const total = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0), 0);
     const last  = [...recs].sort((a,b)=>b.date.localeCompare(a.date))[0];
     return `
-    <div class="card car-card" onclick="showDet('${car.id}')">
-      <button class="xbtn" onclick="deleteCar('${car.id}',event)">✕</button>
-      <div class="plate" style="font-size:18px;letter-spacing:1px">${car.model}</div>
-      ${(car.year||car.color)?`<div class="year-color">${[car.year,car.color].filter(Boolean).join(' · ')}</div>`:''}
+    <div class="card car-card" onclick="showDet(${jsString(car.id)})">
+      <button class="xbtn" onclick="deleteCar(${jsString(car.id)},event)">✕</button>
+      <div class="plate" style="font-size:18px;letter-spacing:1px">${escapeHTML(car.model)}</div>
+      ${(car.year||car.color)?`<div class="year-color">${escapeHTML([car.year,car.color].filter(Boolean).join(' · '))}</div>`:''}
       <div class="car-stats">
         <div class="cstat"><span class="cstat-val">${recs.length}</span><span class="cstat-lbl">Registos</span></div>
         <div class="cstat"><span class="cstat-val">${fEur(total)}</span><span class="cstat-lbl">Gasto</span></div>
-        <div class="cstat"><span class="cstat-val">${last?fKm(last.km):'—'}</span><span class="cstat-lbl">Último km</span></div>
-        <div class="cstat"><span class="cstat-val">${last?fDate(last.date):'—'}</span><span class="cstat-lbl">Data</span></div>
+        <div class="cstat"><span class="cstat-val">${last?escapeHTML(fKm(last.km)):'—'}</span><span class="cstat-lbl">Último km</span></div>
+        <div class="cstat"><span class="cstat-val">${last?escapeHTML(fDate(last.date)):'—'}</span><span class="cstat-lbl">Data</span></div>
       </div>
     </div>`;
   }).join('');
@@ -400,7 +417,7 @@ let activeFilt = null;
 
 function prepRec(preCarId=null) {
   const sel = document.getElementById('r-car');
-  sel.innerHTML = DB.cars.map(c=>`<option value="${c.id}"${c.id===preCarId?' selected':''}>${c.model}${c.year?' ('+c.year+')':''}</option>`).join('');
+  sel.innerHTML = DB.cars.map(c=>`<option value="${escapeHTML(c.id)}"${c.id===preCarId?' selected':''}>${escapeHTML(c.model)}${c.year?' ('+escapeHTML(c.year)+')':''}</option>`).join('');
   if(!DB.cars.length) sel.innerHTML = '<option value="">Adiciona um carro primeiro</option>';
   document.getElementById('r-date').value = new Date().toISOString().slice(0,10);
   ['r-km','r-cost','r-notes','r-custom'].forEach(i=>document.getElementById(i).value='');
@@ -448,7 +465,7 @@ function renderRegs() {
     .map(id=>DB.cars.find(c=>c.id===id)).filter(Boolean);
   document.getElementById('fbar').innerHTML =
     `<button class="chip${!activeFilt?' on':''}" onclick="setFilt(null)">Todos</button>` +
-    usedCars.map(c=>`<button class="chip${activeFilt===c.id?' on':''}" onclick="setFilt('${c.id}')">${c.model}</button>`).join('');
+    usedCars.map(c=>`<button class="chip${activeFilt===c.id?' on':''}" onclick="setFilt(${jsString(c.id)})">${escapeHTML(c.model)}</button>`).join('');
 
   let recs = [...DB.records].sort((a,b)=>b.date.localeCompare(a.date));
   if(activeFilt) recs = recs.filter(r=>r.carId===activeFilt);
@@ -468,15 +485,15 @@ function recHTML(r) {
   return `<div class="rec">
     <div class="rec-ico">${t.i}</div>
     <div class="rec-body">
-      <div class="rec-type">${r.typeName}</div>
-      <div class="rec-meta">${fDate(r.date)}${car?' · '+car.model:''}</div>
-      ${r.notes?`<div class="rec-note">${r.notes}</div>`:''}
+      <div class="rec-type">${escapeHTML(r.typeName)}</div>
+      <div class="rec-meta">${escapeHTML(fDate(r.date))}${car?' · '+escapeHTML(car.model):''}</div>
+      ${r.notes?`<div class="rec-note">${escapeHTML(r.notes)}</div>`:''}
     </div>
     <div class="rec-right">
       <div class="rec-cost">${r.cost?fEur(parseFloat(r.cost)):'—'}</div>
-      <div class="rec-km">${r.km?fKm(r.km):'—'}</div>
+      <div class="rec-km">${r.km?escapeHTML(fKm(r.km)):'—'}</div>
     </div>
-    <button class="xbtn" onclick="deleteRec('${r.id}')">✕</button>
+    <button class="xbtn" onclick="deleteRec(${jsString(r.id)})">✕</button>
   </div>`;
 }
 
@@ -490,8 +507,8 @@ function showDet(carId) {
   const tot  = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
   document.getElementById('det-hdr').innerHTML = `
     <div style="margin-bottom:14px">
-      <div class="plate" style="font-size:18px;letter-spacing:1px">${car.model}${car.year?' · '+car.year:''}</div>
-      ${car.color?`<div class="year-color">${car.color}</div>`:''}
+      <div class="plate" style="font-size:18px;letter-spacing:1px">${escapeHTML(car.model)}${car.year?' · '+escapeHTML(car.year):''}</div>
+      ${car.color?`<div class="year-color">${escapeHTML(car.color)}</div>`:''}
       <div style="font-size:12px;color:var(--sub);margin-top:6px">${recs.length} registos · ${fEur(tot)} total</div>
     </div>`;
   document.getElementById('det-add-btn').onclick = ()=>{ closeM('m-det'); prepRec(carId); openM('m-rec'); };
@@ -521,7 +538,7 @@ function renderSum() {
     </div>
     <div class="scard" style="grid-column:1/-1">
       <div class="slbl">Mais Frequente</div>
-      <div class="sval" style="font-size:22px">${top}</div>
+      <div class="sval" style="font-size:22px">${escapeHTML(top)}</div>
     </div>`;
 
   document.getElementById('car-sum').innerHTML = DB.cars.map(car=>{
@@ -531,13 +548,13 @@ function renderSum() {
     recs.forEach(r=>{ byT[r.typeName]=(byT[r.typeName]||0)+1; });
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div class="plate" style="font-size:17px">${car.model}${car.year?' · '+car.year:''}</div></div>
+        <div><div class="plate" style="font-size:17px">${escapeHTML(car.model)}${car.year?' · '+escapeHTML(car.year):''}</div></div>
         <div style="text-align:right">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--a)">${fEur(tot)}</div>
           <div style="font-size:11px;color:var(--sub)">${recs.length} registos</div>
         </div>
       </div>
-      ${Object.keys(byT).length?`<div style="margin-top:10px">${Object.entries(byT).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="badge">${k} ×${v}</span>`).join('')}</div>`:''}
+      ${Object.keys(byT).length?`<div style="margin-top:10px">${Object.entries(byT).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="badge">${escapeHTML(k)} ×${v}</span>`).join('')}</div>`:''}
     </div>`;
   }).join('') || '<div class="empty"><div class="empty-t">Sem dados</div></div>';
 }
