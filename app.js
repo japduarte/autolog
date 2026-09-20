@@ -638,4 +638,4 @@ function fEur(v) { return Number(v).toLocaleString('pt-PT',{style:'currency',cur
 // ARRANQUE
 // ══════════════════════════════════════
 loadDB();
-renderCars();
+renderRegs();
