@@ -8,6 +8,7 @@ Página HTML autónoma para registar e consultar as intervenções dos veículos
 - Registo de idas à oficina com data, quilometragem, custo, vários tipos de intervenção e notas.
 - Tipos predefinidos: inspeção, óleo, pneus, travões, filtros, correia, bateria, revisão, A/C, luzes, seguro, lavagem e outros.
 - Consulta do histórico por carro e filtro de registos.
+- Edição de registos para completar ou corrigir informação.
 - Resumo global e por veículo: total gasto, número de registos e intervenção mais frequente.
 - Persistência automática no navegador.
 - Backup local por ficheiro JSON (exportar/importar).

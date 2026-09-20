@@ -2,13 +2,21 @@
 // TIPOS DE INTERVENÇÃO
 // ══════════════════════════════════════
 const TIPOS=[
-  {id:'inspecao',l:'Inspeção',i:'🔍'},{id:'oleo',l:'Óleo',i:'🛢️'},
-  {id:'pneus',l:'Pneus',i:'⚫'},{id:'travoes',l:'Travões',i:'🔴'},
-  {id:'filtros',l:'Filtros',i:'🌀'},{id:'correia',l:'Correia',i:'⚙️'},
-  {id:'bateria',l:'Bateria',i:'🔋'},{id:'revisao',l:'Revisão',i:'📋'},
-  {id:'ac',l:'A/C',i:'❄️'},{id:'luzes',l:'Luzes',i:'💡'},
-  {id:'seguro',l:'Seguro',i:'🛡️'},{id:'lavagem',l:'Lavagem',i:'🧼'},
-  {id:'outro',l:'Outro',i:'🔧'}
+  {id:'ac',l:'A/C',i:'❄️'}
+  ,{id:'bateria',l:'Bateria',i:'🔋'}
+  ,{id:'correia',l:'Correia',i:'⚙️'}
+  ,{id:'filtrocombo',l:'Filtro Combustível',i:'🌀'}
+  ,{id:'filtroleo',l:'Filtro Óleo',i:'🌀'}
+  ,{id:'filtrohabi',l:'Filtro Habitáculo',i:'🌀'}
+  ,{id:'inspecao',l:'Inspeção',i:'🔍'}
+  ,{id:'lavagem',l:'Lavagem',i:'🧼'}
+  ,{id:'luzes',l:'Luzes',i:'💡'}
+  ,{id:'oleo',l:'Óleo',i:'🛢️'},
+  ,{id:'outro',l:'Outro',i:'🔧'}
+  ,{id:'pneus',l:'Pneus',i:'⚫'}
+  ,{id:'travoes',l:'Travões',i:'🔴'}
+  ,{id:'revisao',l:'Revisão',i:'📋'}
+  ,{id:'seguro',l:'Seguro',i:'🛡️'}
 ];
 
 // ══════════════════════════════════════
@@ -346,8 +354,8 @@ function showPage(id, btn) {
 // ══════════════════════════════════════
 // MODAIS
 // ══════════════════════════════════════
-function openM(id, preCarId=null) {
-  if(id==='m-rec') prepRec(preCarId);
+function openM(id, preCarId=null, record=null) {
+  if(id==='m-rec') prepRec(preCarId, record);
   document.getElementById(id).classList.add('on');
 }
 function closeM(id) { document.getElementById(id).classList.remove('on'); }
@@ -414,14 +422,25 @@ function renderCars() {
 // ══════════════════════════════════════
 let selTipos = new Set();
 let activeFilt = null;
+let editingRecId = null;
 
-function prepRec(preCarId=null) {
+function prepRec(preCarId=null, record=null) {
   const sel = document.getElementById('r-car');
   sel.innerHTML = DB.cars.map(c=>`<option value="${escapeHTML(c.id)}"${c.id===preCarId?' selected':''}>${escapeHTML(c.model)}${c.year?' ('+escapeHTML(c.year)+')':''}</option>`).join('');
   if(!DB.cars.length) sel.innerHTML = '<option value="">Adiciona um carro primeiro</option>';
-  document.getElementById('r-date').value = new Date().toISOString().slice(0,10);
-  ['r-km','r-cost','r-notes','r-custom'].forEach(i=>document.getElementById(i).value='');
-  selTipos = new Set(); renderChips();
+  editingRecId = record?.id || null;
+  document.getElementById('rec-modal-title').textContent = record ? 'Editar Registo' : 'Novo Registo';
+  document.getElementById('rec-save-btn').textContent = record ? 'Guardar Alterações' : 'Guardar Registo';
+  document.getElementById('r-date').value = record?.date || new Date().toISOString().slice(0,10);
+  document.getElementById('r-km').value = record?.km ?? '';
+  document.getElementById('r-cost').value = record?.cost ?? '';
+  document.getElementById('r-notes').value = record?.notes ?? '';
+  const typeIds = record ? recordTypeIds(record) : [];
+  const typeNames = record ? recordTypeNames(record) : [];
+  document.getElementById('r-custom').value = typeIds.includes('outro')
+    ? typeNames[typeIds.indexOf('outro')] || ''
+    : '';
+  selTipos = new Set(typeIds); renderChips();
 }
 function renderChips() {
   document.getElementById('tchips').innerHTML = TIPOS.map(t=>`
@@ -455,17 +474,30 @@ function addRec() {
   const typeNames = types.map(type => type==='outro'
     ? (document.getElementById('r-custom').value.trim() || 'Outro')
     : TIPOS.find(t=>t.id===type).l);
-  DB.records.push({
-    id: Date.now().toString(), carId, date,
+  const record = {
+    id: editingRecId || Date.now().toString(), carId, date,
     km:   document.getElementById('r-km').value,
     cost: document.getElementById('r-cost').value,
     types, typeNames,
     type: types[0], typeName: typeNames.join(' · '),
     notes: document.getElementById('r-notes').value.trim()
-  });
+  };
+  if(editingRecId) {
+    const index = DB.records.findIndex(r=>r.id===editingRecId);
+    if(index === -1) { toast('Registo não encontrado','err'); return; }
+    DB.records[index] = record;
+  } else {
+    DB.records.push(record);
+  }
   saveDB(); closeM('m-rec');
   renderCars(); renderRegs();
-  toast('Registo guardado!','ok');
+  toast(editingRecId ? 'Registo actualizado!' : 'Registo guardado!','ok');
+}
+
+function editRec(id) {
+  const record = DB.records.find(r=>r.id===id);
+  if(!record) { toast('Registo não encontrado','err'); return; }
+  openM('m-rec', record.carId, record);
 }
 
 function deleteRec(id) {
@@ -510,6 +542,7 @@ function recHTML(r) {
       <div class="rec-cost">${r.cost?fEur(parseFloat(r.cost)):'—'}</div>
       <div class="rec-km">${r.km?escapeHTML(fKm(r.km)):'—'}</div>
     </div>
+    <button class="xbtn edit-btn" onclick="editRec(${jsString(r.id)})" aria-label="Editar registo">✎</button>
     <button class="xbtn" onclick="deleteRec(${jsString(r.id)})">✕</button>
   </div>`;
 }

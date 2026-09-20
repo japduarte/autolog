@@ -120,6 +120,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);display:flex
   border-radius:5px;transition:all .15s;line-height:1;
 }
 .xbtn:active{color:var(--danger);background:rgba(255,59,92,.1)}
+.edit-btn{right:36px}
 
 /* ── MODAL ── */
 .ov{

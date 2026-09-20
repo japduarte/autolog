@@ -16,7 +16,7 @@
 <div class="hdr">
   <div class="brand">
     <div class="logo">Auto<em>Log</em></div>
-    <span class="version">v1.0.2</span>
+    <span class="version">v1.0.3</span>
   </div>
   <div class="hdr-right">
     <div class="save-dot" id="saveDot"></div>
@@ -26,12 +26,20 @@
 
 <!-- NAV -->
 <div class="nav">
-  <button class="nb on" onclick="showPage('carros',this)">🚗 Carros</button>
-  <button class="nb" onclick="showPage('registos',this)">🔧 Registos</button>
+  <button class="nb on" onclick="showPage('registos',this)">🔧 Registos</button>
   <button class="nb" onclick="showPage('resumo',this)">📊 Resumo</button>
+  <button class="nb" onclick="showPage('carros',this)">🚗 Carros</button>
 </div>
 
 <div class="pages">
+  <!-- CARROS -->
+  <div class="page on" id="page-carros">
+    <div class="page-inner">
+      <div class="sh">Os Meus Carros</div>
+      <div id="car-list"></div>
+      <button class="btn btn-p btn-full" onclick="openM('m-car')">+ Adicionar Carro</button>
+    </div>
+  </div>
 
   <!-- REGISTOS -->
   <div class="page" id="page-registos">
@@ -50,15 +58,6 @@
       <div class="sgrid" id="sgrid"></div>
       <div class="sh">Por Carro</div>
       <div id="car-sum"></div>
-    </div>
-  </div>
-
-  <!-- CARROS -->
-  <div class="page on" id="page-carros">
-    <div class="page-inner">
-      <div class="sh">Os Meus Carros</div>
-      <div id="car-list"></div>
-      <button class="btn btn-p btn-full" onclick="openM('m-car')">+ Adicionar Carro</button>
     </div>
   </div>
   
@@ -146,7 +145,7 @@
 <div class="ov" id="m-rec">
   <div class="modal">
     <div class="mhandle"></div>
-    <div class="mtitle">Novo Registo</div>
+    <div class="mtitle" id="rec-modal-title">Novo Registo</div>
     <div class="fg"><label class="fl">Carro</label><select class="fs" id="r-car"></select></div>
     <div class="row">
       <div class="fg"><label class="fl">Data</label><input class="fi" id="r-date" type="date"></div>
@@ -165,7 +164,7 @@
     <div class="fg"><label class="fl">Notas (opcional)</label><textarea class="fta" id="r-notes" placeholder="Observações..."></textarea></div>
     <div class="fbtn-row">
       <button class="btn btn-g" onclick="closeM('m-rec')">Cancelar</button>
-      <button class="btn btn-p" style="flex:2" onclick="addRec()">Guardar Registo</button>
+      <button class="btn btn-p" style="flex:2" id="rec-save-btn" onclick="addRec()">Guardar Registo</button>
     </div>
   </div>
 </div>
