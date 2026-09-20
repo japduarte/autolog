@@ -4,7 +4,7 @@
 const TIPOS=[
   {id:'ac',l:'A/C',i:'❄️'},
   {id:'bateria',l:'Bateria',i:'🔋'},
-  {id:'correia',l:'Correia',i:'⚙️'},
+  {id:'correiadist',l:'Correia Distibuição',i:'⚙️'},
   {id:'filtrocombo',l:'Filtro Combustível',i:'🌀'},
   {id:'filtroleo',l:'Filtro Óleo',i:'🌀'},
   {id:'filtrohabi',l:'Filtro Habitáculo',i:'🌀'},
@@ -571,6 +571,48 @@ function showDet(carId) {
   openM('m-det');
 }
 
+function summaryTypeEntries(records) {
+  const entries = {};
+  records.forEach(record => {
+    const ids = recordTypeIds(record);
+    const names = recordTypeNames(record);
+    ids.forEach((id, index) => {
+      const name = names[index] || TIPOS.find(type => type.id === id)?.l || id;
+      // "Outro" pode ter uma descri\u00e7\u00e3o pr\u00f3pria; cada descri\u00e7\u00e3o aparece separadamente.
+      const key = `${encodeURIComponent(id)}|${encodeURIComponent(name)}`;
+      if(!entries[key]) entries[key] = {key, id, name, count:0};
+      entries[key].count++;
+    });
+  });
+  return Object.values(entries);
+}
+
+function showTypeDetails(carId, typeKey) {
+  const car = DB.cars.find(c => c.id === carId);
+  if(!car) return;
+  const [encodedId, encodedName] = String(typeKey).split('|');
+  const typeId = decodeURIComponent(encodedId || '');
+  const typeName = decodeURIComponent(encodedName || '');
+  const records = DB.records
+    .filter(record => record.carId === carId)
+    .filter(record => recordTypeIds(record).some((id, index) =>
+      id === typeId && (recordTypeNames(record)[index] || TIPOS.find(type => type.id === id)?.l || id) === typeName
+    ))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  document.getElementById('type-det-title').textContent = typeName;
+  document.getElementById('type-det-subtitle').textContent = `${car.model} · ${records.length} registo${records.length === 1 ? '' : 's'}`;
+  document.getElementById('type-det-list').innerHTML = records.map(record => `
+    <div class="type-det-rec">
+      <div class="type-det-meta">
+        <span>${escapeHTML(fDate(record.date))}</span>
+        <span class="type-det-km">${record.km ? escapeHTML(fKm(record.km)) : '—'}</span>
+      </div>
+      <div class="type-det-note">${record.notes ? escapeHTML(record.notes) : 'Sem observações.'}</div>
+    </div>`).join('') || '<div class="empty" style="padding:24px 0"><div class="empty-t">Sem registos</div></div>';
+  openM('m-type-det');
+}
+
 // ══════════════════════════════════════
 // RESUMO
 // ══════════════════════════════════════
@@ -596,8 +638,7 @@ function renderSum() {
   document.getElementById('car-sum').innerHTML = DB.cars.map(car=>{
     const recs = DB.records.filter(r=>r.carId===car.id);
     const tot  = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
-    const byT  = {};
-    recs.forEach(r=>recordTypeNames(r).forEach(name=>{ byT[name]=(byT[name]||0)+1; }));
+    const byT = summaryTypeEntries(recs);
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div><div class="plate" style="font-size:17px">${escapeHTML(car.model)}${car.year?' · '+escapeHTML(car.year):''}</div></div>
@@ -606,7 +647,7 @@ function renderSum() {
           <div style="font-size:11px;color:var(--sub)">${recs.length} registos</div>
         </div>
       </div>
-      ${Object.keys(byT).length?`<div style="margin-top:10px">${Object.entries(byT).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="badge">${escapeHTML(k)} ×${v}</span>`).join('')}</div>`:''}
+      ${byT.length?`<div style="margin-top:10px">${byT.sort((a,b)=>b.count-a.count).map(type=>`<button class="badge type-badge" onclick="showTypeDetails(${jsString(car.id)},${jsString(type.key)})" aria-label="Ver registos de ${escapeHTML(type.name)}">${escapeHTML(type.name)} ×${type.count}</button>`).join('')}</div>`:''}
     </div>`;
   }).join('') || '<div class="empty"><div class="empty-t">Sem dados</div></div>';
 }
