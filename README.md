@@ -51,6 +51,8 @@ O backup cria ou atualiza `autolog_backup.json` no Drive da conta autenticada. A
 ## Estrutura
 
 ```text
-index.html       Aplicação completa: HTML, CSS e JavaScript
+index.html       Estrutura HTML da aplicação
+styles.css       Estilos da interface
+app.js           Lógica da aplicação, persistência e Google Drive
 index.htmlOLD*   Versões anteriores
 ```
