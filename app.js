@@ -346,8 +346,8 @@ function showPage(id, btn) {
 // ══════════════════════════════════════
 // MODAIS
 // ══════════════════════════════════════
-function openM(id) {
-  if(id==='m-rec') prepRec();
+function openM(id, preCarId=null) {
+  if(id==='m-rec') prepRec(preCarId);
   document.getElementById(id).classList.add('on');
 }
 function closeM(id) { document.getElementById(id).classList.remove('on'); }
@@ -412,7 +412,7 @@ function renderCars() {
 // ══════════════════════════════════════
 // REGISTOS
 // ══════════════════════════════════════
-let selTipo = null;
+let selTipos = new Set();
 let activeFilt = null;
 
 function prepRec(preCarId=null) {
@@ -421,30 +421,46 @@ function prepRec(preCarId=null) {
   if(!DB.cars.length) sel.innerHTML = '<option value="">Adiciona um carro primeiro</option>';
   document.getElementById('r-date').value = new Date().toISOString().slice(0,10);
   ['r-km','r-cost','r-notes','r-custom'].forEach(i=>document.getElementById(i).value='');
-  selTipo = null; renderChips();
+  selTipos = new Set(); renderChips();
 }
 function renderChips() {
   document.getElementById('tchips').innerHTML = TIPOS.map(t=>`
-    <button class="chip${selTipo===t.id?' on':''}" onclick="pickTipo('${t.id}')">${t.i} ${t.l}</button>
+    <button class="chip${selTipos.has(t.id)?' on':''}" onclick="pickTipo('${t.id}')">${t.i} ${t.l}</button>
   `).join('');
-  document.getElementById('cfg').style.display = selTipo==='outro'?'block':'none';
+  document.getElementById('cfg').style.display = selTipos.has('outro')?'block':'none';
 }
-function pickTipo(id) { selTipo=id; renderChips(); }
+function pickTipo(id) {
+  if(selTipos.has(id)) selTipos.delete(id);
+  else selTipos.add(id);
+  renderChips();
+}
+
+function recordTypeNames(record) {
+  const names = Array.isArray(record.typeNames) ? record.typeNames : [record.typeName];
+  return names.filter(Boolean).map(String);
+}
+
+function recordTypeIds(record) {
+  const types = Array.isArray(record.types) ? record.types : [record.type];
+  return types.filter(Boolean).map(String);
+}
 
 function addRec() {
   const carId = document.getElementById('r-car').value;
   const date  = document.getElementById('r-date').value;
   if(!carId || !DB.cars.find(c=>c.id===carId)) { toast('Seleciona um carro','err'); return; }
   if(!date)  { toast('Indica a data','err'); return; }
-  if(!selTipo) { toast('Escolhe o tipo de intervenção','err'); return; }
-  const typeName = selTipo==='outro'
+  if(!selTipos.size) { toast('Escolhe pelo menos um tipo de intervenção','err'); return; }
+  const types = [...selTipos];
+  const typeNames = types.map(type => type==='outro'
     ? (document.getElementById('r-custom').value.trim() || 'Outro')
-    : TIPOS.find(t=>t.id===selTipo).l;
+    : TIPOS.find(t=>t.id===type).l);
   DB.records.push({
     id: Date.now().toString(), carId, date,
     km:   document.getElementById('r-km').value,
     cost: document.getElementById('r-cost').value,
-    type: selTipo, typeName,
+    types, typeNames,
+    type: types[0], typeName: typeNames.join(' · '),
     notes: document.getElementById('r-notes').value.trim()
   });
   saveDB(); closeM('m-rec');
@@ -481,11 +497,12 @@ function setFilt(id) { activeFilt=id; renderRegs(); }
 
 function recHTML(r) {
   const car = DB.cars.find(c=>c.id===r.carId);
-  const t   = TIPOS.find(t=>t.id===r.type)||{i:'🔧'};
+  const t   = TIPOS.find(t=>t.id===recordTypeIds(r)[0])||{i:'🔧'};
+  const names = recordTypeNames(r);
   return `<div class="rec">
     <div class="rec-ico">${t.i}</div>
     <div class="rec-body">
-      <div class="rec-type">${escapeHTML(r.typeName)}</div>
+      <div class="rec-type">${escapeHTML(names.join(' · '))}</div>
       <div class="rec-meta">${escapeHTML(fDate(r.date))}${car?' · '+escapeHTML(car.model):''}</div>
       ${r.notes?`<div class="rec-note">${escapeHTML(r.notes)}</div>`:''}
     </div>
@@ -511,7 +528,7 @@ function showDet(carId) {
       ${car.color?`<div class="year-color">${escapeHTML(car.color)}</div>`:''}
       <div style="font-size:12px;color:var(--sub);margin-top:6px">${recs.length} registos · ${fEur(tot)} total</div>
     </div>`;
-  document.getElementById('det-add-btn').onclick = ()=>{ closeM('m-det'); prepRec(carId); openM('m-rec'); };
+  document.getElementById('det-add-btn').onclick = ()=>{ closeM('m-det'); openM('m-rec', carId); };
   const listEl = document.getElementById('det-recs');
   listEl.innerHTML = recs.length
     ? recs.map(r=>recHTML(r)).join('')
@@ -525,7 +542,7 @@ function showDet(carId) {
 function renderSum() {
   const total = DB.records.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
   const freq  = {};
-  DB.records.forEach(r=>{ freq[r.typeName]=(freq[r.typeName]||0)+1; });
+  DB.records.forEach(r=>recordTypeNames(r).forEach(name=>{ freq[name]=(freq[name]||0)+1; }));
   const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
 
   document.getElementById('sgrid').innerHTML = `
@@ -545,7 +562,7 @@ function renderSum() {
     const recs = DB.records.filter(r=>r.carId===car.id);
     const tot  = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
     const byT  = {};
-    recs.forEach(r=>{ byT[r.typeName]=(byT[r.typeName]||0)+1; });
+    recs.forEach(r=>recordTypeNames(r).forEach(name=>{ byT[name]=(byT[name]||0)+1; }));
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div><div class="plate" style="font-size:17px">${escapeHTML(car.model)}${car.year?' · '+escapeHTML(car.year):''}</div></div>

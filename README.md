@@ -5,7 +5,7 @@ Página HTML autónoma para registar e consultar as intervenções dos veículos
 ## Funcionalidades
 
 - Gestão de vários carros (modelo, ano e cor).
-- Registo de intervenções com data, quilometragem, custo, tipo e notas.
+- Registo de idas à oficina com data, quilometragem, custo, vários tipos de intervenção e notas.
 - Tipos predefinidos: inspeção, óleo, pneus, travões, filtros, correia, bateria, revisão, A/C, luzes, seguro, lavagem e outros.
 - Consulta do histórico por carro e filtro de registos.
 - Resumo global e por veículo: total gasto, número de registos e intervenção mais frequente.
