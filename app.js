@@ -357,6 +357,7 @@ function showPage(id, btn) {
 // ══════════════════════════════════════
 function openM(id, preCarId=null, record=null) {
   if(id==='m-rec') prepRec(preCarId, record);
+  if(id==='m-car') prepCar(record);
   document.getElementById(id).classList.add('on');
 }
 function closeM(id) { document.getElementById(id).classList.remove('on'); }
@@ -367,21 +368,46 @@ document.querySelectorAll('.ov').forEach(o=>{
 // ══════════════════════════════════════
 // CARROS
 // ══════════════════════════════════════
-function addCar() {
+let editingCarId = null;
+
+function prepCar(car=null) {
+  editingCarId = car?.id || null;
+  document.getElementById('car-modal-title').textContent = car ? 'Editar Carro' : 'Novo Carro';
+  document.getElementById('car-save-btn').textContent = car ? 'Guardar Alterações' : 'Guardar Carro';
+  document.getElementById('c-model').value = car?.model || '';
+  document.getElementById('c-fuel').value = car?.fuel || '';
+  document.getElementById('c-plate').value = car?.plate || '';
+  document.getElementById('c-year').value = car?.year || '';
+  document.getElementById('c-color').value = car?.color || '';
+}
+
+function saveCar() {
   const model = document.getElementById('c-model').value.trim();
   if(!model) { toast('Introduz o modelo','err'); return; }
-  DB.cars.push({
-    id: Date.now().toString(),
+  const car = {
+    id: editingCarId || Date.now().toString(),
     model,
     fuel: document.getElementById('c-fuel').value,
     plate: document.getElementById('c-plate').value.trim().toUpperCase(),
     year: document.getElementById('c-year').value.trim(),
     color: document.getElementById('c-color').value.trim()
-  });
+  };
+  if(editingCarId) {
+    const index = DB.cars.findIndex(c=>c.id===editingCarId);
+    if(index === -1) { toast('Carro não encontrado','err'); return; }
+    DB.cars[index] = {...DB.cars[index], ...car};
+  } else {
+    DB.cars.push(car);
+  }
   saveDB(); closeM('m-car');
-  ['c-model','c-fuel','c-plate','c-year','c-color'].forEach(i=>document.getElementById(i).value='');
-  renderCars();
-  toast('Carro adicionado!','ok');
+  renderCars(); renderRegs(); renderSum();
+  toast(editingCarId ? 'Carro actualizado!' : 'Carro adicionado!','ok');
+}
+
+function editCar(id) {
+  const car = DB.cars.find(c=>c.id===id);
+  if(!car) { toast('Carro não encontrado','err'); return; }
+  openM('m-car', null, car);
 }
 
 function deleteCar(id, e) {
@@ -406,6 +432,7 @@ function renderCars() {
     return `
     <div class="card car-card" onclick="showDet(${jsString(car.id)})">
       <button class="xbtn" onclick="deleteCar(${jsString(car.id)},event)">✕</button>
+      <button class="edit-car" aria-label="Editar carro" onclick="event.stopPropagation();editCar(${jsString(car.id)})">Editar carro</button>
       <div class="plate" style="font-size:18px;letter-spacing:1px">${escapeHTML(car.model)}</div>
       ${(car.fuel||car.plate||car.year||car.color)?`<div class="year-color">${escapeHTML([car.fuel,car.plate,car.year,car.color].filter(Boolean).join(' · '))}</div>`:''}
       <div class="car-stats">

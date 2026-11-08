@@ -120,6 +120,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);display:flex
   border-radius:5px;transition:all .15s;line-height:1;
 }
 .xbtn:active{color:var(--danger);background:rgba(255,59,92,.1)}
+.edit-car{
+  position:absolute;top:8px;right:34px;background:none;border:none;
+  color:var(--a);font:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  padding:4px 6px;border-radius:5px;
+}
+.edit-car:active{background:var(--s3)}
 .rec-actions{position:absolute;bottom:10px;left:13px;right:13px;display:flex;gap:8px}
 .rec-actions .btn{flex:1;justify-content:center;padding:8px 10px;font-size:12px}
 .rec-delete{font-size:12px;padding:8px 10px}
