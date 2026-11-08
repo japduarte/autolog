@@ -1,0 +1,10 @@
+# Credenciais locais
+api_key.txt
+github-recovery-codes.txt
+# Ficheiros do sistema e editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+autolog_backup.json
+.worktrees/
