@@ -33,5 +33,16 @@
     return km === undefined ? null : Number(km);
   }
 
-  return { normalizeDB, validDB, lastKnownKm };
+  function carSummary(records, carId) {
+    const entries = records.filter(record => record.carId === carId);
+    const newest = [...entries].sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    return {
+      count: entries.length,
+      totalCost: entries.reduce((total, record) => total + (Number(record.cost) || 0), 0),
+      lastKm: lastKnownKm(entries, carId),
+      lastDate: newest?.date || '',
+    };
+  }
+
+  return { normalizeDB, validDB, lastKnownKm, carSummary };
 });

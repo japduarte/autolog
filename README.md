@@ -4,7 +4,7 @@ Página HTML autónoma para registar e consultar as intervenções dos veículos
 
 ## Funcionalidades
 
-- Gestão de vários carros (modelo, ano e cor).
+- Gestão de vários carros (modelo, combustível e matrícula).
 - Registo de idas à oficina com data, quilometragem, custo, vários tipos de intervenção e notas.
 - Tipos predefinidos: inspeção, óleo, pneus, travões, filtros, correia, bateria, revisão, A/C, luzes, seguro, lavagem e outros.
 - Consulta do histórico por carro e filtro de registos.
@@ -13,7 +13,8 @@ Página HTML autónoma para registar e consultar as intervenções dos veículos
 - Persistência automática no navegador.
 - Backup local por ficheiro JSON (exportar/importar).
 - Backup manual no Google Drive, através de OAuth 2.0 e Drive API.
-- Interface mobile-first, instalável pelo browser como atalho/app web.
+- Interface mobile-first clara, instalável pelo browser como atalho/app web.
+- A versão publicada mostra o SHA curto do commit Git no cabeçalho.
 
 ## Executar
 
@@ -31,7 +32,7 @@ Os dados são guardados no `localStorage` do browser, na chave `autolog_v2`, com
 
 ```json
 {
-  "cars": [],
+  "cars": [{"model":"", "fuel":"", "plate":""}],
   "records": []
 }
 ```

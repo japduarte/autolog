@@ -22,7 +22,7 @@ const TIPOS=[
 // ══════════════════════════════════════
 // BASE DE DADOS — localStorage
 // ══════════════════════════════════════
-let DB = {cars:[], records:[]};
+let DB = AutoLogModel.normalizeDB({cars:[], records:[]});
 
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -35,7 +35,7 @@ function jsString(value) {
 }
 
 function validDB(data) {
-  return data && Array.isArray(data.cars) && Array.isArray(data.records);
+  return AutoLogModel.validDB(data);
 }
 
 function loadDB() {
@@ -43,11 +43,12 @@ function loadDB() {
     const s = localStorage.getItem('autolog_v2');
     if(s) {
       const parsed = JSON.parse(s);
-      if(validDB(parsed)) DB = parsed;
+      if(validDB(parsed)) DB = AutoLogModel.normalizeDB(parsed);
     }
   } catch(e) { DB = {cars:[], records:[]}; }
 }
 function saveDB() {
+  DB.updatedAt = new Date().toISOString();
   localStorage.setItem('autolog_v2', JSON.stringify(DB));
   flashSave();
 }
@@ -87,7 +88,7 @@ function importJSON() {
         const parsed = JSON.parse(ev.target.result);
         if(!validDB(parsed)) throw new Error('Formato inválido');
         if(!confirm(`Importar ${parsed.cars.length} carro(s) e ${parsed.records.length} registo(s)?\nOs dados actuais serão substituídos.`)) return;
-        DB = parsed;
+        DB = AutoLogModel.normalizeDB(parsed);
         saveDB();
         renderCars(); renderRegs(); renderSum();
         toast('Dados importados com sucesso!','ok');
@@ -111,7 +112,7 @@ function clearAll() {
 // GOOGLE DRIVE — OAuth2 + Drive API
 // ══════════════════════════════════════
 const GDRIVE_CLIENT_ID = '853627522281-duuvpar60nh0blqlgrdad13dt6vegl5h.apps.googleusercontent.com';
-const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file profile email';
+const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
 const GDRIVE_FILE_NAME = 'autolog_backup.json';
 
 let gToken      = null;  // access token
@@ -372,11 +373,11 @@ function addCar() {
   DB.cars.push({
     id: Date.now().toString(),
     model,
-    year:  document.getElementById('c-year').value.trim(),
-    color: document.getElementById('c-color').value.trim()
+    fuel: document.getElementById('c-fuel').value,
+    plate: document.getElementById('c-plate').value.trim().toUpperCase()
   });
   saveDB(); closeM('m-car');
-  ['c-model','c-year','c-color'].forEach(i=>document.getElementById(i).value='');
+  ['c-model','c-fuel','c-plate'].forEach(i=>document.getElementById(i).value='');
   renderCars();
   toast('Carro adicionado!','ok');
 }
@@ -399,19 +400,17 @@ function renderCars() {
     return;
   }
   el.innerHTML = DB.cars.map(car => {
-    const recs  = DB.records.filter(r=>r.carId===car.id);
-    const total = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0), 0);
-    const last  = [...recs].sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const summary = AutoLogModel.carSummary(DB.records, car.id);
     return `
     <div class="card car-card" onclick="showDet(${jsString(car.id)})">
       <button class="xbtn" onclick="deleteCar(${jsString(car.id)},event)">✕</button>
       <div class="plate" style="font-size:18px;letter-spacing:1px">${escapeHTML(car.model)}</div>
-      ${(car.year||car.color)?`<div class="year-color">${escapeHTML([car.year,car.color].filter(Boolean).join(' · '))}</div>`:''}
+      ${(car.fuel||car.plate)?`<div class="year-color">${escapeHTML([car.fuel,car.plate].filter(Boolean).join(' · '))}</div>`:''}
       <div class="car-stats">
-        <div class="cstat"><span class="cstat-val">${recs.length}</span><span class="cstat-lbl">Registos</span></div>
-        <div class="cstat"><span class="cstat-val">${fEur(total)}</span><span class="cstat-lbl">Gasto</span></div>
-        <div class="cstat"><span class="cstat-val">${last?escapeHTML(fKm(last.km)):'—'}</span><span class="cstat-lbl">Último km</span></div>
-        <div class="cstat"><span class="cstat-val">${last?escapeHTML(fDate(last.date)):'—'}</span><span class="cstat-lbl">Data</span></div>
+        <div class="cstat"><span class="cstat-val">${summary.count}</span><span class="cstat-lbl">Registos</span></div>
+        <div class="cstat"><span class="cstat-val">${fEur(summary.totalCost)}</span><span class="cstat-lbl">Gasto</span></div>
+        <div class="cstat"><span class="cstat-val">${summary.lastKm === null ? '—' : escapeHTML(fKm(summary.lastKm))}</span><span class="cstat-lbl">Último km</span></div>
+        <div class="cstat"><span class="cstat-val">${summary.lastDate ? escapeHTML(fDate(summary.lastDate)) : '—'}</span><span class="cstat-lbl">Data</span></div>
       </div>
     </div>`;
   }).join('');
@@ -557,11 +556,12 @@ function showDet(carId) {
   if(!car) return;
   const recs = [...DB.records.filter(r=>r.carId===carId)].sort((a,b)=>b.date.localeCompare(a.date));
   const tot  = recs.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
+  const summary = AutoLogModel.carSummary(DB.records, carId);
   document.getElementById('det-hdr').innerHTML = `
     <div style="margin-bottom:14px">
-      <div class="plate" style="font-size:18px;letter-spacing:1px">${escapeHTML(car.model)}${car.year?' · '+escapeHTML(car.year):''}</div>
-      ${car.color?`<div class="year-color">${escapeHTML(car.color)}</div>`:''}
-      <div style="font-size:12px;color:var(--sub);margin-top:6px">${recs.length} registos · ${fEur(tot)} total</div>
+      <div class="plate" style="font-size:18px;letter-spacing:1px">${escapeHTML(car.model)}</div>
+      ${(car.fuel||car.plate)?`<div class="year-color">${escapeHTML([car.fuel,car.plate].filter(Boolean).join(' · '))}</div>`:''}
+      <div style="font-size:12px;color:var(--sub);margin-top:6px">${recs.length} registos · ${fEur(tot)} total · ${summary.lastKm === null ? 'sem km' : escapeHTML(fKm(summary.lastKm))}</div>
     </div>`;
   document.getElementById('det-add-btn').onclick = ()=>{ closeM('m-det'); openM('m-rec', carId); };
   const listEl = document.getElementById('det-recs');
@@ -678,5 +678,35 @@ function fEur(v) { return Number(v).toLocaleString('pt-PT',{style:'currency',cur
 // ══════════════════════════════════════
 // ARRANQUE
 // ══════════════════════════════════════
+function loadGoogleIdentity() {
+  return new Promise((resolve, reject) => {
+    if (window.google?.accounts?.oauth2) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Não foi possível carregar a autenticação Google.'));
+    document.head.appendChild(script);
+  });
+}
+
+async function gdriveLogin() {
+  try {
+    await loadGoogleIdentity();
+    gToken = await new Promise((resolve, reject) => {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GDRIVE_CLIENT_ID,
+        scope: GDRIVE_SCOPE,
+        callback: result => result.error ? reject(new Error(result.error)) : resolve(result.access_token)
+      });
+      client.requestAccessToken({ prompt: 'consent' });
+    });
+    gUserInfo = { name: 'Google Drive', email: '' };
+    renderGDriveUI(true);
+    findDriveFile();
+    toast('Conta Google ligada!','ok');
+  } catch (error) { toast(error.message || 'Não foi possível ligar ao Drive','err'); }
+}
+
 loadDB();
+document.getElementById('build-version').textContent = window.APP_VERSION || 'local';
 renderRegs();
