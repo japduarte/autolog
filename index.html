@@ -127,14 +127,14 @@
 <div class="ov" id="m-car">
   <div class="modal">
     <div class="mhandle"></div>
-    <div class="mtitle">Novo Carro</div>
+    <div class="mtitle" id="car-modal-title">Novo Carro</div>
     
     <div class="fg"><label class="fl">Marca e Modelo</label><input class="fi" id="c-model" placeholder="Seat Ibiza"></div>
     <div class="row"><div class="fg"><label class="fl">Combustível</label><select class="fs" id="c-fuel"><option value="">Selecionar</option><option>Gasóleo</option><option>Gasolina</option><option>Híbrido</option><option>Outro</option></select></div><div class="fg"><label class="fl">Matrícula</label><input class="fi" id="c-plate" placeholder="00-AA-00"></div></div>
     <div class="row"><div class="fg"><label class="fl">Ano</label><input class="fi" id="c-year" type="number" min="1900" max="2099" placeholder="2018"></div><div class="fg"><label class="fl">Cor</label><input class="fi" id="c-color" placeholder="Branco"></div></div>
     <div class="fbtn-row">
       <button class="btn btn-g" onclick="closeM('m-car')">Cancelar</button>
-      <button class="btn btn-p" style="flex:2" onclick="addCar()">Guardar Carro</button>
+      <button class="btn btn-p" id="car-save-btn" style="flex:2" onclick="saveCar()">Guardar Carro</button>
     </div>
   </div>
 </div>
