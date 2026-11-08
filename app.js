@@ -374,10 +374,12 @@ function addCar() {
     id: Date.now().toString(),
     model,
     fuel: document.getElementById('c-fuel').value,
-    plate: document.getElementById('c-plate').value.trim().toUpperCase()
+    plate: document.getElementById('c-plate').value.trim().toUpperCase(),
+    year: document.getElementById('c-year').value.trim(),
+    color: document.getElementById('c-color').value.trim()
   });
   saveDB(); closeM('m-car');
-  ['c-model','c-fuel','c-plate'].forEach(i=>document.getElementById(i).value='');
+  ['c-model','c-fuel','c-plate','c-year','c-color'].forEach(i=>document.getElementById(i).value='');
   renderCars();
   toast('Carro adicionado!','ok');
 }
@@ -405,7 +407,7 @@ function renderCars() {
     <div class="card car-card" onclick="showDet(${jsString(car.id)})">
       <button class="xbtn" onclick="deleteCar(${jsString(car.id)},event)">✕</button>
       <div class="plate" style="font-size:18px;letter-spacing:1px">${escapeHTML(car.model)}</div>
-      ${(car.fuel||car.plate)?`<div class="year-color">${escapeHTML([car.fuel,car.plate].filter(Boolean).join(' · '))}</div>`:''}
+      ${(car.fuel||car.plate||car.year||car.color)?`<div class="year-color">${escapeHTML([car.fuel,car.plate,car.year,car.color].filter(Boolean).join(' · '))}</div>`:''}
       <div class="car-stats">
         <div class="cstat"><span class="cstat-val">${summary.count}</span><span class="cstat-lbl">Registos</span></div>
         <div class="cstat"><span class="cstat-val">${fEur(summary.totalCost)}</span><span class="cstat-lbl">Gasto</span></div>
@@ -560,7 +562,7 @@ function showDet(carId) {
   document.getElementById('det-hdr').innerHTML = `
     <div style="margin-bottom:14px">
       <div class="plate" style="font-size:18px;letter-spacing:1px">${escapeHTML(car.model)}</div>
-      ${(car.fuel||car.plate)?`<div class="year-color">${escapeHTML([car.fuel,car.plate].filter(Boolean).join(' · '))}</div>`:''}
+      ${(car.fuel||car.plate||car.year||car.color)?`<div class="year-color">${escapeHTML([car.fuel,car.plate,car.year,car.color].filter(Boolean).join(' · '))}</div>`:''}
       <div style="font-size:12px;color:var(--sub);margin-top:6px">${recs.length} registos · ${fEur(tot)} total · ${summary.lastKm === null ? 'sem km' : escapeHTML(fKm(summary.lastKm))}</div>
     </div>`;
   document.getElementById('det-add-btn').onclick = ()=>{ closeM('m-det'); openM('m-rec', carId); };
